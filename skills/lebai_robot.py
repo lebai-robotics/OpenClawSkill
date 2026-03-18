@@ -10,7 +10,6 @@ All functions are synchronous - no asyncio required.
 """
 
 import json
-import math
 import time
 import inspect
 from typing import Optional, Dict, Any, List, Union
@@ -238,8 +237,8 @@ def move_to_position(x: float = 0, y: float = 0, z: float = 0,
     Move to Cartesian position (convenience function).
 
     Args:
-        x, y, z: Position in mm
-        rx, ry, rz: Rotation in degrees
+        x, y, z: Position in meters
+        rx, ry, rz: Rotation in radians
         speed: Speed 0-100
         wait: Wait for completion
         robot_id: Robot identifier
@@ -248,18 +247,17 @@ def move_to_position(x: float = 0, y: float = 0, z: float = 0,
         robot = _get_robot(robot_id)
         if not robot:
             return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-        
-        # Convert degrees to radians and mm to m
-        pose = [x/1000, y/1000, z/1000, 
-                math.radians(rx), math.radians(ry), math.radians(rz)]
-        
+
+        # Position is already in meters
+        pose = [x, y, z, rx, ry, rz]
+
         a = speed * 0.5
         v = speed * 0.5
-        
+
         robot.towardj(pose, a, v)
         if wait:
             robot.wait_move()
-        
+
         return {"success": True, "message": f"Moved to ({x}, {y}, {z})"}
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
@@ -273,7 +271,7 @@ def move_to_joint_angles(j1: float = 0, j2: float = 0, j3: float = 0,
     Move to joint angles (convenience function).
 
     Args:
-        j1-j6: Joint angles in degrees
+        j1-j6: Joint angles in radians
         speed: Speed 0-100
         wait: Wait for completion
         robot_id: Robot identifier
@@ -282,18 +280,17 @@ def move_to_joint_angles(j1: float = 0, j2: float = 0, j3: float = 0,
         robot = _get_robot(robot_id)
         if not robot:
             return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-        
-        # Convert degrees to radians
-        joints = [math.radians(j1), math.radians(j2), math.radians(j3),
-                  math.radians(j4), math.radians(j5), math.radians(j6)]
-        
+
+        # Joints are already in radians
+        joints = [j1, j2, j3, j4, j5, j6]
+
         a = speed * 0.5
         v = speed * 0.5
-        
+
         robot.towardj(joints, a, v)
         if wait:
             robot.wait_move()
-        
+
         return {"success": True, "message": "Moved to joint angles"}
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
@@ -610,24 +607,24 @@ def get_tcp(robot_id: str = "default") -> Dict[str, Any]:
 
 
 def get_current_position(robot_id: str = "default") -> Dict[str, Any]:
-    """Get current TCP position in mm and degrees."""
+    """Get current TCP position in meters and radians."""
     try:
         robot = _get_robot(robot_id)
         if not robot:
             return {"success": False, "message": "Robot not connected"}
-        
+
         kin_data = robot.get_kin_data()
         if isinstance(kin_data, dict) and 'actual_tcp_pose' in kin_data:
             tcp = kin_data['actual_tcp_pose']
             return {
                 "success": True,
                 "position": {
-                    "x": tcp.get('x', 0) * 1000,
-                    "y": tcp.get('y', 0) * 1000,
-                    "z": tcp.get('z', 0) * 1000,
-                    "rx": math.degrees(tcp.get('rx', 0)),
-                    "ry": math.degrees(tcp.get('ry', 0)),
-                    "rz": math.degrees(tcp.get('rz', 0))
+                    "x": tcp.get('x', 0),
+                    "y": tcp.get('y', 0),
+                    "z": tcp.get('z', 0),
+                    "rx": tcp.get('rx', 0),
+                    "ry": tcp.get('ry', 0),
+                    "rz": tcp.get('rz', 0)
                 }
             }
         return {"success": False, "message": "Unable to parse TCP data"}
@@ -636,21 +633,20 @@ def get_current_position(robot_id: str = "default") -> Dict[str, Any]:
 
 
 def get_current_joints(robot_id: str = "default") -> Dict[str, Any]:
-    """Get current joint angles in degrees."""
+    """Get current joint angles in radians."""
     try:
         robot = _get_robot(robot_id)
         if not robot:
             return {"success": False, "message": "Robot not connected"}
-        
+
         kin_data = robot.get_kin_data()
         if isinstance(kin_data, dict) and 'actual_joint_pose' in kin_data:
-            joints_rad = kin_data['actual_joint_pose']
-            joints_deg = [math.degrees(j) for j in joints_rad]
+            joints = kin_data['actual_joint_pose']
             return {
                 "success": True,
                 "joints": {
-                    "j1": joints_deg[0], "j2": joints_deg[1], "j3": joints_deg[2],
-                    "j4": joints_deg[3], "j5": joints_deg[4], "j6": joints_deg[5]
+                    "j1": joints[0], "j2": joints[1], "j3": joints[2],
+                    "j4": joints[3], "j5": joints[4], "j6": joints[5]
                 }
             }
         return {"success": False, "message": "Unable to parse joint data"}

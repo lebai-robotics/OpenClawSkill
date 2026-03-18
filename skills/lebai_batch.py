@@ -115,18 +115,20 @@ def pick_and_place(
 
     Args:
         robot_id: Robot identifier
-        pick_position: Position to pick from (x, y, z, rx, ry, rz)
-        place_position: Position to place to (x, y, z, rx, ry, rz)
-        approach_height: Height to approach before picking/placing (mm)
+        pick_position: Position to pick from (x, y, z, rx, ry, rz) in meters
+        place_position: Position to place to (x, y, z, rx, ry, rz) in meters
+        approach_height: Height to approach before picking/placing in meters
         speed: Movement speed (0-100)
 
     Returns:
         Operation status
     """
+    import math
+
     if pick_position is None:
-        pick_position = {"x": 200, "y": 0, "z": 100, "rx": 180, "ry": 0, "rz": 0}
+        pick_position = {"x": 0.2, "y": 0, "z": 0.1, "rx": math.pi, "ry": 0, "rz": 0}
     if place_position is None:
-        place_position = {"x": 200, "y": 100, "z": 100, "rx": 180, "ry": 0, "rz": 0}
+        place_position = {"x": 0.2, "y": 0.1, "z": 0.1, "rx": math.pi, "ry": 0, "rz": 0}
 
     try:
         from skills.lebai_robot import _get_robot
@@ -228,13 +230,15 @@ def calibration_routine(
 
     Args:
         robot_id: Robot identifier
-        home_position: Home position for calibration (default: straight up)
+        home_position: Home position for calibration (default: straight up) in meters
 
     Returns:
         Calibration status
     """
+    import math
+
     if home_position is None:
-        home_position = {"x": 0, "y": 0, "z": 300, "rx": 180, "ry": 0, "rz": 0}
+        home_position = {"x": 0, "y": 0, "z": 0.3, "rx": math.pi, "ry": 0, "rz": 0}
 
     try:
         from skills.lebai_robot import _get_robot

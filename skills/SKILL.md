@@ -20,10 +20,10 @@ from skills import connect_robot, move_to_position, get_current_position, discon
 # Connect
 connect_robot(host="127.0.0.1", simu=True)
 
-# Move
-move_to_position(x=200, y=0, z=200, rx=180, ry=0, rz=0, speed=50)
+# Move (x, y, z in meters; rx, ry, rz in radians)
+move_to_position(x=0.2, y=0, z=0.2, rx=3.14159, ry=0, rz=0, speed=50)
 
-# Get position
+# Get position (x, y, z in meters; rx, ry, rz in radians)
 pos = get_current_position()
 
 # Disconnect
