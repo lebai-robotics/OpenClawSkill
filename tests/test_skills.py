@@ -27,13 +27,6 @@ def test_imports():
         estop,
         set_payload,
     )
-    from skills.lebai_batch import (
-        execute_motion_sequence,
-        pick_and_place,
-        calibration_routine,
-        monitor_status_loop,
-        waypoint_navigation,
-    )
 
     print("  ✓ All skills imported successfully")
     return True
@@ -92,7 +85,6 @@ def test_motion_functions():
     print("Testing motion functions...")
 
     from skills.lebai_robot import movel, estop
-    from skills.lebai_batch import execute_motion_sequence
 
     # These should return error when not connected
     move_result = movel(p={"x": 0.1, "y": 0, "z": 0.2, "rx": 0, "ry": 0, "rz": 0}, a=25, v=25)
@@ -102,10 +94,6 @@ def test_motion_functions():
     stop_result = estop()
     assert stop_result.get("success") == False
     print(f"  E-stop (not connected): {stop_result['message']}")
-
-    sequence_result = execute_motion_sequence(positions=[])
-    assert sequence_result.get("success") == False
-    print(f"  Sequence (not connected): {sequence_result['message']}")
 
     print("  ✓ Motion functions test passed")
     return True

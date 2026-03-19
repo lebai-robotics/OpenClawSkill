@@ -1,6 +1,6 @@
 # Lebai Robot Skill - 完整 API 文档
 
-已暴露 lebai-sdk 的所有接口，共 **135+ 个函数**。
+已暴露 lebai-sdk 的所有接口，共 **130+ 个函数**。
 
 ## 接口分类
 
@@ -214,16 +214,6 @@
 | `run_plugin_cmd` | 运行插件命令 | name, params |
 | `call` | 调用任意方法 | method, param |
 | `subscribe` | 订阅数据 | method, param |
-
-### 20. 批量操作 (5 个)
-
-| 函数 | 描述 | 参数 |
-|------|------|------|
-| `execute_motion_sequence` | 执行运动序列 | positions, speed, wait_between |
-| `pick_and_place` | 拾取放置 | pick_position, place_position, approach_height, speed |
-| `calibration_routine` | 校准例程 | home_position |
-| `monitor_status_loop` | 状态监控 | interval, duration |
-| `waypoint_navigation` | 航点导航 | waypoints, speeds |
 
 ## 使用示例
 
