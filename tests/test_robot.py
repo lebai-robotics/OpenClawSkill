@@ -21,12 +21,12 @@ from skills.lebai_robot import (
     connect_robot,
     disconnect_robot,
     movel,
-    get_robot_status,
+    get_robot_state,
     get_current_position,
     get_current_joints,
     control_gripper,
     init_gripper,
-    emergency_stop,
+    estop,
 )
 
 
@@ -57,7 +57,7 @@ def main():
     # 2. 获取状态
     print()
     print('2. 获取机器人状态...')
-    status = get_robot_status()
+    status = get_robot_state()
     print(f'   状态：{status.get("status", "unknown")}')
 
     # 3. 获取当前位置

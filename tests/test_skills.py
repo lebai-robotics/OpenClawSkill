@@ -21,10 +21,10 @@ def test_imports():
         connect_robot,
         disconnect_robot,
         control_gripper,
-        get_robot_status,
+        get_robot_state,
         get_current_position,
         get_current_joints,
-        emergency_stop,
+        estop,
         set_payload,
     )
     from skills.lebai_batch import (
@@ -65,13 +65,13 @@ def test_status_functions():
     print("Testing status functions...")
 
     from skills.lebai_robot import (
-        get_robot_status,
+        get_robot_state,
         get_current_position,
         get_current_joints,
     )
 
     # These should return error when not connected
-    status = get_robot_status()
+    status = get_robot_state()
     assert status.get("success") == False
     print(f"  Status (not connected): {status['message']}")
 
@@ -91,7 +91,7 @@ def test_motion_functions():
     """Test motion functions (should handle not connected gracefully)."""
     print("Testing motion functions...")
 
-    from skills.lebai_robot import movel, emergency_stop
+    from skills.lebai_robot import movel, estop
     from skills.lebai_batch import execute_motion_sequence
 
     # These should return error when not connected
@@ -99,7 +99,7 @@ def test_motion_functions():
     assert move_result.get("success") == False
     print(f"  Move (not connected): {move_result['message']}")
 
-    stop_result = emergency_stop()
+    stop_result = estop()
     assert stop_result.get("success") == False
     print(f"  E-stop (not connected): {stop_result['message']}")
 
