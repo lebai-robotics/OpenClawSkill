@@ -1,3 +1,8 @@
+---
+name: lebai-robot
+description: Full-featured robotic arm control skill for Lebai robots with 135+ functions
+---
+
 # Lebai Robot Skill
 
 Comprehensive Lebai robot control skill exposing all lebai-sdk interfaces (135+ functions).

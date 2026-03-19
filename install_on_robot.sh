@@ -52,7 +52,15 @@ echo
 echo "5. 安装技能文件..."
 if [ -d "$SCRIPT_DIR/skills" ]; then
     mkdir -p "$SKILL_DIR"
+    # 复制技能文件到目标目录（不是复制整个 skills 子目录）
     cp -r "$SCRIPT_DIR/skills"/* "$SKILL_DIR/"
+    # 确保 SKILL.md 在技能目录的根目录下（openclaw 要求）
+    if [ -f "$SKILL_DIR/SKILL.md" ]; then
+        echo "   ✓ SKILL.md 位于：$SKILL_DIR/SKILL.md"
+    else
+        echo "   ✗ SKILL.md 未找到于：$SKILL_DIR/SKILL.md"
+        exit 1
+    fi
     echo "   ✓ 技能文件已复制到：$SKILL_DIR"
 else
     echo "   ✗ 未找到 skills 目录：$SCRIPT_DIR/skills"

@@ -595,7 +595,13 @@ def get_robot_state(robot_id: str = "default") -> Dict[str, Any]:
 
 
 def get_tcp(robot_id: str = "default") -> Dict[str, Any]:
-    """Get current TCP position."""
+    """
+    Get TCP offset relative to the flange end.
+    
+    Returns the configured TCP tool center point offset from the flange.
+    This is NOT the TCP position in base frame.
+    For TCP position relative to base frame, use get_current_position().
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -607,7 +613,15 @@ def get_tcp(robot_id: str = "default") -> Dict[str, Any]:
 
 
 def get_current_position(robot_id: str = "default") -> Dict[str, Any]:
-    """Get current TCP position in meters and radians."""
+    """
+    Get current TCP position in base frame (meters and radians).
+
+    Returns the TCP position relative to the robot base frame.
+    For TCP offset relative to flange, use get_tcp().
+    
+    Returns:
+        position: {x, y, z, rx, ry, rz} dict in meters and radians
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -633,7 +647,12 @@ def get_current_position(robot_id: str = "default") -> Dict[str, Any]:
 
 
 def get_current_joints(robot_id: str = "default") -> Dict[str, Any]:
-    """Get current joint angles in radians."""
+    """
+    Get current joint angles in radians.
+    
+    Returns:
+        joints: [j1, j2, j3, j4, j5, j6] array in radians
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -644,10 +663,7 @@ def get_current_joints(robot_id: str = "default") -> Dict[str, Any]:
             joints = kin_data['actual_joint_pose']
             return {
                 "success": True,
-                "joints": {
-                    "j1": joints[0], "j2": joints[1], "j3": joints[2],
-                    "j4": joints[3], "j5": joints[4], "j6": joints[5]
-                }
+                "joints": list(joints)
             }
         return {"success": False, "message": "Unable to parse joint data"}
     except Exception as e:

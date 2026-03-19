@@ -71,13 +71,13 @@
 | 函数 | 描述 | 参数 |
 |------|------|------|
 | `get_robot_state` | 机器人状态 | - |
-| `get_tcp` | TCP 位置 | - |
 | `get_current_position` | 当前位置 (mm, °) | - |
 | `get_current_joints` | 当前关节 (°) | - |
 | `get_kin_data` | 运动学数据 | - |
 | `get_phy_data` | 物理数据 | - |
 | `get_payload` | 负载配置 | - |
 | `get_gravity` | 重心配置 | - |
+| `get_tcp` | TCP 偏移量（相对于法兰末端） | - |
 | `get_velocity_factor` | 速度因子 | - |
 
 ### 8. 配置设置 (9 个)
@@ -86,7 +86,7 @@
 |------|------|------|
 | `set_payload` | 设置负载 | mass, cog |
 | `set_gravity` | 设置重心 | pose |
-| `set_tcp` | 设置 TCP | pose |
+| `set_tcp` | 设置 TCP 偏移量（相对于法兰末端） | pose |
 | `set_velocity_factor` | 设置速度因子 | speed_factor |
 | `enable_joint_limits` | 启用关节限位 | - |
 | `disable_joint_limits` | 禁用关节限位 | - |
