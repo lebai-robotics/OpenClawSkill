@@ -5,6 +5,12 @@ Lebai Robot Control Skill - Complete API
 Provides comprehensive control over Lebai robotic arms.
 This module exposes all available lebai-sdk interfaces.
 
+Documentation:
+    - Official Docs: https://help.lebai.ltd
+    - Python SDK: https://help.lebai.ltd/SDK/Python SDK/
+    - Examples: https://help.lebai.ltd/编程示例/Python 例程.html
+    - FAQ: https://help.lebai.ltd/faq/
+
 Note: Uses lebai_sdk (https://github.com/lebai-robotics/lebai-sdk)
 All functions are synchronous - no asyncio required.
 """

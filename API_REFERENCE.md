@@ -2,6 +2,25 @@
 
 已暴露 lebai-sdk 的所有接口，共 **130+ 个函数**。
 
+## 官方文档
+
+- **乐白机器人帮助文档**: [https://help.lebai.ltd](https://help.lebai.ltd)
+- **Python SDK 使用指南**: [https://help.lebai.ltd/SDK/Python SDK/](https://help.lebai.ltd/SDK/Python%20SDK/)
+- **Python 编程示例**: [https://help.lebai.ltd/编程示例/Python 例程.html](https://help.lebai.ltd/%E7%BC%96%E7%A8%8B%E7%A4%BA%E4%BE%8B/Python%20%E4%BE%8B%E7%A8%8B.html)
+- **常见问题 FAQ**: [https://help.lebai.ltd/faq/](https://help.lebai.ltd/faq/)
+
+## 常见问题 FAQ
+
+| 问题 | 描述 |
+|------|------|
+| **机械臂运动指令有哪些** | 所有运动命令概述：MoveL, MoveC, MoveJ, SpeedL, SpeedJ, MovePT, MovePVT, MovePVAT, TowardJ |
+| **为什么直线运动总是报错** | 直线运动错误排查 |
+| **为什么要设置末端负载** | 为什么示教模式和碰撞检测需要负载配置 |
+| **如何手动控制碰撞检测** | 如何启用/禁用碰撞检测以及监控碰撞扭矩 |
+| **为什么没有示教器** | 无示教器设计的说明 |
+| **新夹爪 IO 使用说明** | 新夹爪 IO 布线和配置指南 |
+| **夹爪安装说明** | 夹爪安装说明 |
+
 ## 接口分类
 
 ### 1. 连接管理 (4 个)
