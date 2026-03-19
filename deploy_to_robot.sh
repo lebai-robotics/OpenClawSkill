@@ -12,12 +12,11 @@ echo "============================================================"
 echo "目标：$USERNAME@$HOST"
 echo
 
-# 检查安装包是否存在
-if [ ! -f "$PACKAGE" ]; then
-    echo "✗ 安装包不存在：$PACKAGE"
-    echo "正在创建..."
-    tar -czvf "$PACKAGE" skills/ install_on_robot.sh
-fi
+# 创建安装包（始终使用最新文件）
+echo "正在创建安装包..."
+tar -czvf "$PACKAGE" skills/ install_on_robot.sh
+echo "   ✓ 安装包已创建：$PACKAGE"
+echo
 
 echo "1. 复制安装包到机器人..."
 scp "$PACKAGE" "$USERNAME@$HOST:/home/$USERNAME/"

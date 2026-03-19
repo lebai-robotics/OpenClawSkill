@@ -51,9 +51,14 @@ fi
 echo
 echo "5. 安装技能文件..."
 if [ -d "$SCRIPT_DIR/skills" ]; then
+    # 如果目标目录已存在，先删除旧文件以确保完全替换
+    if [ -d "$SKILL_DIR" ]; then
+        echo "   ℹ️  检测到旧版本，正在清理..."
+        rm -rf "$SKILL_DIR"
+    fi
     mkdir -p "$SKILL_DIR"
     # 复制技能文件到目标目录（不是复制整个 skills 子目录）
-    cp -r "$SCRIPT_DIR/skills"/* "$SKILL_DIR/"
+    cp -rf "$SCRIPT_DIR/skills"/* "$SKILL_DIR/"
     # 确保 SKILL.md 在技能目录的根目录下（openclaw 要求）
     if [ -f "$SKILL_DIR/SKILL.md" ]; then
         echo "   ✓ SKILL.md 位于：$SKILL_DIR/SKILL.md"

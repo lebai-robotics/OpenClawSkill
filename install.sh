@@ -59,13 +59,6 @@ else
     exit 1
 fi
 
-if [ -f "$SKILL_DIR/lebai_batch.py" ]; then
-    echo "   ✓ lebai_batch.py 存在"
-else
-    echo "   ✗ lebai_batch.py 不存在"
-    exit 1
-fi
-
 # 6. 创建/更新 .env 配置
 echo
 echo "6. 配置环境变量..."
