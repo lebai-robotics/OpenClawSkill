@@ -115,9 +115,9 @@ def towardj(p: List[float], a: float, v: float,
     Move to joint position (joint interpolation).
 
     Args:
-        p: Target position - [j1, j2, j3, j4, j5, j6] array in radians
-        a: Acceleration
-        v: Velocity
+        p: Target joint angles - [j1, j2, j3, j4, j5, j6] array in radians
+        a: Joint acceleration in rad/s²
+        v: Joint velocity in rad/s
         t: Timeout (optional)
         r: Blend radius (optional)
         robot_id: Robot identifier
@@ -142,9 +142,9 @@ def movej(p: List[float], a: float, v: float,
     Move to joint position with planning.
 
     Args:
-        p: Target position - [j1, j2, j3, j4, j5, j6] array in radians
-        a: Acceleration
-        v: Velocity
+        p: Target joint angles - [j1, j2, j3, j4, j5, j6] array in radians
+        a: Joint acceleration in rad/s²
+        v: Joint velocity in rad/s
         t: Timeout (optional)
         r: Blend radius (optional)
         robot_id: Robot identifier
@@ -166,9 +166,9 @@ def movel(p: Dict[str, float], a: float, v: float,
     Move to Cartesian position (linear motion).
 
     Args:
-        p: Target position - {x, y, z, rx, ry, rz} dict in meters and radians
-        a: Acceleration
-        v: Velocity
+        p: Target position - {x, y, z, rx, ry, rz} dict (m, rad)
+        a: Cartesian acceleration in m/s²
+        v: Cartesian velocity in m/s
         t: Timeout (optional)
         r: Blend radius (optional)
         robot_id: Robot identifier
@@ -191,11 +191,11 @@ def movec(via: Dict[str, float], p: Dict[str, float],
     Circular motion.
 
     Args:
-        via: Via point - {x, y, z, rx, ry, rz} dict in meters and radians
-        p: Target position - {x, y, z, rx, ry, rz} dict in meters and radians
-        rad: Radius
-        a: Acceleration
-        v: Velocity
+        via: Via point - {x, y, z, rx, ry, rz} dict (m, rad)
+        p: Target position - {x, y, z, rx, ry, rz} dict (m, rad)
+        rad: Radius in meters
+        a: Cartesian acceleration in m/s²
+        v: Cartesian velocity in m/s
         t: Timeout (optional)
         r: Blend radius (optional)
         robot_id: Robot identifier
@@ -240,7 +240,7 @@ def move_pvt(p: List[float], v: List[float], t: float, robot_id: str = "default"
 
     Args:
         p: Target joint angles - [j1, j2, j3, j4, j5, j6] array in radians
-        v: Velocity - [vx, vy, vz, vrx, vry, vrz] array
+        v: Joint velocity - [j1, j2, j3, j4, j5, j6] array in rad/s
         t: Time
         robot_id: Robot identifier
     """
@@ -261,8 +261,8 @@ def move_pvat(p: List[float], v: List[float], a: List[float], t: float,
 
     Args:
         p: Target joint angles - [j1, j2, j3, j4, j5, j6] array in radians
-        v: Velocity - [vx, vy, vz, vrx, vry, vrz] array
-        a: Acceleration - [ax, ay, az, arx, ary, arz] array
+        v: Joint velocity - [j1, j2, j3, j4, j5, j6] array in rad/s
+        a: Joint acceleration - [j1, j2, j3, j4, j5, j6] array in rad/s²
         t: Time
         robot_id: Robot identifier
     """
@@ -277,7 +277,15 @@ def move_pvat(p: List[float], v: List[float], a: List[float], t: float,
 
 
 def speedj(a: float, v: List[float], t: float = None, robot_id: str = "default") -> Dict[str, Any]:
-    """Joint velocity control."""
+    """
+    Joint velocity control.
+
+    Args:
+        a: Joint acceleration in rad/s²
+        v: Joint velocity - [j1, j2, j3, j4, j5, j6] array in rad/s
+        t: Timeout (optional)
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -290,7 +298,16 @@ def speedj(a: float, v: List[float], t: float = None, robot_id: str = "default")
 
 def speedl(a: float, v: Dict[str, float], t: float = None, frame: Dict[str, float] = None,
            robot_id: str = "default") -> Dict[str, Any]:
-    """Cartesian velocity control."""
+    """
+    Cartesian velocity control.
+
+    Args:
+        a: Cartesian acceleration in m/s²
+        v: Cartesian velocity - {x, y, z, rx, ry, rz} dict (m/s, rad/s)
+        t: Timeout (optional)
+        frame: Reference frame (optional)
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:

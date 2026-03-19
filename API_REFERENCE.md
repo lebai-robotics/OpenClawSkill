@@ -17,20 +17,20 @@
 
 | 函数 | 描述 | 参数 |
 |------|------|------|
-| `towardj` | 关节插值运动 | p, a, v, t, r |
-| `movej` | 关节规划运动 | p, a, v, t, r |
-| `movel` | 直线运动 | p, a, v, t, r |
-| `movec` | 圆弧运动 | via, p, rad, a, v, t, r |
+| `towardj` | 关节插值运动 | p (关节数组 rad), a (rad/s²), v (rad/s), t, r |
+| `movej` | 关节规划运动 | p (关节数组 rad), a (rad/s²), v (rad/s), t, r |
+| `movel` | 直线运动 | p (笛卡尔 m, rad), a (m/s²), v (m/s), t, r |
+| `movec` | 圆弧运动 | via (m, rad), p (m, rad), rad (m), a (m/s²), v (m/s), t, r |
 
 ### 3. 高级运动控制 (5 个)
 
 | 函数 | 描述 | 参数 |
 |------|------|------|
-| `move_pt` | 时间点运动 | p (关节数组), t |
-| `move_pvt` | 位置 - 速度 - 时间运动 | p (关节数组), v, t |
-| `move_pvat` | 位置 - 速度 - 加速度 - 时间运动 | p (关节数组), v, a, t |
-| `speedj` | 关节速度控制 | a, v, t |
-| `speedl` | 笛卡尔速度控制 | a, v, t, frame |
+| `move_pt` | 时间点运动 | p (关节数组 rad), t |
+| `move_pvt` | 位置 - 速度 - 时间运动 | p (关节数组 rad), v (rad/s), t |
+| `move_pvat` | 位置 - 速度 - 加速度 - 时间运动 | p (关节数组 rad), v (rad/s), a (rad/s²), t |
+| `speedj` | 关节速度控制 | a (rad/s²), v (rad/s), t |
+| `speedl` | 笛卡尔速度控制 | a (m/s²), v (m/s, rad/s), t, frame |
 | `move_trajectory` | 执行轨迹 | name, dir |
 
 ### 4. 运动状态 (7 个)
