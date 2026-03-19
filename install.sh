@@ -88,7 +88,7 @@ echo "  2. 运行 openclaw 启动"
 echo "  3. 使用以下命令测试:"
 echo "     - 连接机器人：connect_robot(host='192.168.4.63', port=3030)"
 echo "     - 获取位置：get_current_position()"
-echo "     - 移动：movel(p={'x': 0.2, 'y': 0, 'z': 0.2, 'rx': 3.14159}, a=25, v=25)"
+echo "     - 移动：movel(p={'x': 0.2, 'y': 0, 'z': 0.2, 'rx': 3.14159}, a=1, v=0.2)"
 echo
 echo "卸载命令:"
 echo "  rm -rf $SKILL_DIR"
