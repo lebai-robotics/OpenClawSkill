@@ -32,13 +32,13 @@ def _set_robot(robot_id: str, robot: Any):
 # Connection Management
 # ============================================================================
 
-def connect_robot(host: str = "127.0.0.1", simu: bool = True, robot_id: str = "default") -> Dict[str, Any]:
+def connect_robot(host: str = "127.0.0.1", port: int = None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Connect to a Lebai robot.
 
     Args:
         host: Robot IP address or hostname
-        simu: True for real robot, False for simulation mode
+        port: Port number (optional, defaults to 3030)
         robot_id: Robot identifier (default: "default")
 
     Returns:
@@ -47,7 +47,10 @@ def connect_robot(host: str = "127.0.0.1", simu: bool = True, robot_id: str = "d
     try:
         from lebai_sdk import connect
 
-        robot = connect(host, simu)
+        if port is not None:
+            robot = connect(host, port)
+        else:
+            robot = connect(host)
         time.sleep(0.5)
 
         if robot.is_connected():
@@ -57,7 +60,7 @@ def connect_robot(host: str = "127.0.0.1", simu: bool = True, robot_id: str = "d
                 "message": f"Connected to robot at {host}",
                 "robot_info": {
                     "host": host,
-                    "simu": simu,
+                    "port": port,
                     "connected": True,
                     "robot_id": robot_id
                 }
@@ -65,7 +68,7 @@ def connect_robot(host: str = "127.0.0.1", simu: bool = True, robot_id: str = "d
         return {
             "success": False,
             "message": f"Failed to connect to robot at {host}",
-            "robot_info": {"host": host, "simu": simu, "connected": False}
+            "robot_info": {"host": host, "port": port, "connected": False}
         }
     except Exception as e:
         return {"success": False, "message": f"Failed to connect: {str(e)}", "error": str(e)}
