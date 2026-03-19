@@ -109,13 +109,13 @@ def wait_disconnect(robot_id: str = "default") -> Dict[str, Any]:
 # Motion Control - Basic
 # ============================================================================
 
-def towardj(p: Union[List[float], Dict[str, float]], a: float, v: float, 
+def towardj(p: List[float], a: float, v: float,
             t: float = None, r: float = None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Move to joint position (joint interpolation).
 
     Args:
-        p: Target position - list of 6 joint angles or dict with j1-j6
+        p: Target position - [j1, j2, j3, j4, j5, j6] array in radians
         a: Acceleration
         v: Velocity
         t: Timeout (optional)
@@ -129,24 +129,20 @@ def towardj(p: Union[List[float], Dict[str, float]], a: float, v: float,
         robot = _get_robot(robot_id)
         if not robot:
             return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-        
-        # Convert dict to list if needed
-        if isinstance(p, dict):
-            p = [p.get(f'j{i}', 0) for i in range(1, 7)]
-        
+
         result = robot.towardj(p, a, v, t, r)
         return {"success": True, "message": "Move command sent", "id": result}
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def movej(p: Union[List[float], Dict[str, float]], a: float, v: float,
+def movej(p: List[float], a: float, v: float,
           t: float = None, r: float = None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Move to joint position with planning.
 
     Args:
-        p: Target position (joint angles)
+        p: Target position - [j1, j2, j3, j4, j5, j6] array in radians
         a: Acceleration
         v: Velocity
         t: Timeout (optional)
@@ -157,23 +153,20 @@ def movej(p: Union[List[float], Dict[str, float]], a: float, v: float,
         robot = _get_robot(robot_id)
         if not robot:
             return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-        
-        if isinstance(p, dict):
-            p = [p.get(f'j{i}', 0) for i in range(1, 7)]
-        
+
         result = robot.movej(p, a, v, t, r)
         return {"success": True, "message": "Move command sent", "id": result}
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def movel(p: Union[List[float], Dict[str, float]], a: float, v: float,
+def movel(p: Dict[str, float], a: float, v: float,
           t: float = None, r: float = None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Move to Cartesian position (linear motion).
 
     Args:
-        p: Target position (x, y, z, rx, ry, rz)
+        p: Target position - {x, y, z, rx, ry, rz} dict in meters and radians
         a: Acceleration
         v: Velocity
         t: Timeout (optional)
@@ -184,26 +177,22 @@ def movel(p: Union[List[float], Dict[str, float]], a: float, v: float,
         robot = _get_robot(robot_id)
         if not robot:
             return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-        
-        if isinstance(p, dict):
-            p = [p.get('x', 0), p.get('y', 0), p.get('z', 0),
-                 p.get('rx', 0), p.get('ry', 0), p.get('rz', 0)]
-        
+
         result = robot.movel(p, a, v, t, r)
         return {"success": True, "message": "Move command sent", "id": result}
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def movec(self, via: Union[List[float], Dict[str, float]], p: Union[List[float], Dict[str, float]], 
-          rad: float, a: float, v: float, t: float = None, r: float = None, 
+def movec(via: Dict[str, float], p: Dict[str, float],
+          rad: float, a: float, v: float, t: float = None, r: float = None,
           robot_id: str = "default") -> Dict[str, Any]:
     """
     Circular motion.
 
     Args:
-        via: Via point
-        p: Target position
+        via: Via point - {x, y, z, rx, ry, rz} dict in meters and radians
+        p: Target position - {x, y, z, rx, ry, rz} dict in meters and radians
         rad: Radius
         a: Acceleration
         v: Velocity
@@ -215,83 +204,9 @@ def movec(self, via: Union[List[float], Dict[str, float]], p: Union[List[float],
         robot = _get_robot(robot_id)
         if not robot:
             return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-        
-        if isinstance(via, dict):
-            via = [via.get('x', 0), via.get('y', 0), via.get('z', 0),
-                   via.get('rx', 0), via.get('ry', 0), via.get('rz', 0)]
-        if isinstance(p, dict):
-            p = [p.get('x', 0), p.get('y', 0), p.get('z', 0),
-                 p.get('rx', 0), p.get('ry', 0), p.get('rz', 0)]
-        
+
         result = robot.movec(via, p, rad, a, v, t, r)
         return {"success": True, "message": "Move command sent", "id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
-
-
-def move_to_position(x: float = 0, y: float = 0, z: float = 0,
-                     rx: float = 0, ry: float = 0, rz: float = 0,
-                     speed: int = 50, wait: bool = True,
-                     robot_id: str = "default") -> Dict[str, Any]:
-    """
-    Move to Cartesian position (convenience function).
-
-    Args:
-        x, y, z: Position in meters
-        rx, ry, rz: Rotation in radians
-        speed: Speed 0-100
-        wait: Wait for completion
-        robot_id: Robot identifier
-    """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-
-        # Position is already in meters
-        pose = [x, y, z, rx, ry, rz]
-
-        a = speed * 0.5
-        v = speed * 0.5
-
-        robot.towardj(pose, a, v)
-        if wait:
-            robot.wait_move()
-
-        return {"success": True, "message": f"Moved to ({x}, {y}, {z})"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
-
-
-def move_to_joint_angles(j1: float = 0, j2: float = 0, j3: float = 0,
-                         j4: float = 0, j5: float = 0, j6: float = 0,
-                         speed: int = 50, wait: bool = True,
-                         robot_id: str = "default") -> Dict[str, Any]:
-    """
-    Move to joint angles (convenience function).
-
-    Args:
-        j1-j6: Joint angles in radians
-        speed: Speed 0-100
-        wait: Wait for completion
-        robot_id: Robot identifier
-    """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-
-        # Joints are already in radians
-        joints = [j1, j2, j3, j4, j5, j6]
-
-        a = speed * 0.5
-        v = speed * 0.5
-
-        robot.towardj(joints, a, v)
-        if wait:
-            robot.wait_move()
-
-        return {"success": True, "message": "Moved to joint angles"}
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
@@ -301,7 +216,14 @@ def move_to_joint_angles(j1: float = 0, j2: float = 0, j3: float = 0,
 # ============================================================================
 
 def move_pt(p: List[float], t: float, robot_id: str = "default") -> Dict[str, Any]:
-    """Move through points with time."""
+    """
+    Move through points with time.
+
+    Args:
+        p: Target joint angles - [j1, j2, j3, j4, j5, j6] array in radians
+        t: Time
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -313,7 +235,15 @@ def move_pt(p: List[float], t: float, robot_id: str = "default") -> Dict[str, An
 
 
 def move_pvt(p: List[float], v: List[float], t: float, robot_id: str = "default") -> Dict[str, Any]:
-    """Move with position, velocity, time."""
+    """
+    Move with position, velocity, time.
+
+    Args:
+        p: Target joint angles - [j1, j2, j3, j4, j5, j6] array in radians
+        v: Velocity - [vx, vy, vz, vrx, vry, vrz] array
+        t: Time
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -324,9 +254,18 @@ def move_pvt(p: List[float], v: List[float], t: float, robot_id: str = "default"
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def move_pvat(p: List[float], v: List[float], a: List[float], t: float, 
+def move_pvat(p: List[float], v: List[float], a: List[float], t: float,
               robot_id: str = "default") -> Dict[str, Any]:
-    """Move with position, velocity, acceleration, time."""
+    """
+    Move with position, velocity, acceleration, time.
+
+    Args:
+        p: Target joint angles - [j1, j2, j3, j4, j5, j6] array in radians
+        v: Velocity - [vx, vy, vz, vrx, vry, vrz] array
+        a: Acceleration - [ax, ay, az, arx, ary, arz] array
+        t: Time
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -747,9 +686,15 @@ def set_payload(mass: float = None, cog: List[float] = None,
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def set_gravity(pose: Union[List[float], Dict[str, float]], 
+def set_gravity(pose: Dict[str, float],
                 robot_id: str = "default") -> Dict[str, Any]:
-    """Set gravity center."""
+    """
+    Set gravity center.
+    
+    Args:
+        pose: Gravity center - {x, y, z, rx, ry, rz} dict in meters and radians
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -760,9 +705,15 @@ def set_gravity(pose: Union[List[float], Dict[str, float]],
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def set_tcp(pose: Union[List[float], Dict[str, float]], 
+def set_tcp(pose: Dict[str, float],
             robot_id: str = "default") -> Dict[str, Any]:
-    """Set TCP offset."""
+    """
+    Set TCP offset.
+    
+    Args:
+        pose: TCP offset - {x, y, z, rx, ry, rz} dict in meters and radians
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -908,10 +859,19 @@ def control_gripper(action: str = "open", force: int = None, amplitude: int = No
 # Pose Operations
 # ============================================================================
 
-def save_pose(name: str, pose: Union[List[float], Dict[str, float]] = None,
+def save_pose(name: str, pose: Dict[str, float] = None,
               dir: str = None, refer: List[float] = None,
               robot_id: str = "default") -> Dict[str, Any]:
-    """Save pose to file."""
+    """
+    Save pose to file.
+    
+    Args:
+        name: Pose name
+        pose: TCP pose - {x, y, z, rx, ry, rz} dict in meters and radians
+        dir: Directory (optional)
+        refer: Reference joint angles (optional)
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -983,9 +943,15 @@ def load_payload(name: str, dir: str = None, robot_id: str = "default") -> Dict[
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def pose_inverse(p: Union[List[float], Dict[str, float]], 
+def pose_inverse(p: Dict[str, float],
                  robot_id: str = "default") -> Dict[str, Any]:
-    """Calculate inverse pose."""
+    """
+    Calculate inverse pose.
+    
+    Args:
+        p: Pose - {x, y, z, rx, ry, rz} dict in meters and radians
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -996,10 +962,18 @@ def pose_inverse(p: Union[List[float], Dict[str, float]],
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def pose_add(pose: Union[List[float], Dict[str, float]], 
+def pose_add(pose: Dict[str, float],
              delta: Dict[str, float], frame: Dict[str, float] = None,
              robot_id: str = "default") -> Dict[str, Any]:
-    """Add delta to pose."""
+    """
+    Add delta to pose.
+    
+    Args:
+        pose: Base pose - {x, y, z, rx, ry, rz} dict in meters and radians
+        delta: Delta pose - {x, y, z, rx, ry, rz} dict in meters and radians
+        frame: Reference frame (optional)
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -1010,9 +984,18 @@ def pose_add(pose: Union[List[float], Dict[str, float]],
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def kinematics_forward(p: Union[List[float], Dict[str, float]], 
+def kinematics_forward(p: List[float],
                        robot_id: str = "default") -> Dict[str, Any]:
-    """Forward kinematics."""
+    """
+    Forward kinematics.
+    
+    Args:
+        p: Joint angles - [j1, j2, j3, j4, j5, j6] array in radians
+        robot_id: Robot identifier
+    
+    Returns:
+        TCP pose as {x, y, z, rx, ry, rz} dict
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -1023,10 +1006,20 @@ def kinematics_forward(p: Union[List[float], Dict[str, float]],
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def kinematics_inverse(p: Union[List[float], Dict[str, float]], 
+def kinematics_inverse(p: Dict[str, float],
                        refer: List[float] = None,
                        robot_id: str = "default") -> Dict[str, Any]:
-    """Inverse kinematics."""
+    """
+    Inverse kinematics.
+    
+    Args:
+        p: TCP pose - {x, y, z, rx, ry, rz} dict in meters and radians
+        refer: Reference joint angles (optional)
+        robot_id: Robot identifier
+    
+    Returns:
+        Joint angles as [j1, j2, j3, j4, j5, j6] array
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -1037,9 +1030,15 @@ def kinematics_inverse(p: Union[List[float], Dict[str, float]],
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def in_pose(p: Union[List[float], Dict[str, float]], 
+def in_pose(p: Dict[str, float],
             robot_id: str = "default") -> Dict[str, Any]:
-    """Check if current pose is close to target."""
+    """
+    Check if current pose is close to target.
+    
+    Args:
+        p: Target pose - {x, y, z, rx, ry, rz} dict in meters and radians
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -1050,8 +1049,14 @@ def in_pose(p: Union[List[float], Dict[str, float]],
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
 
 
-def measure_manipulation(p: List[float], robot_id: str = "default") -> Dict[str, Any]:
-    """Measure manipulation."""
+def measure_manipulation(p: Dict[str, float], robot_id: str = "default") -> Dict[str, Any]:
+    """
+    Measure manipulation.
+    
+    Args:
+        p: TCP pose - {x, y, z, rx, ry, rz} dict in meters and radians
+        robot_id: Robot identifier
+    """
     try:
         robot = _get_robot(robot_id)
         if not robot:
@@ -1757,7 +1762,7 @@ if __name__ == "__main__":
         "description": "Comprehensive control over Lebai robotic arms",
         "categories": {
             "connection": ["connect_robot", "disconnect_robot", "is_connected", "wait_disconnect"],
-            "motion_basic": ["towardj", "movej", "movel", "movec", "move_to_position", "move_to_joint_angles"],
+            "motion_basic": ["towardj", "movej", "movel", "movec"],
             "motion_advanced": ["move_pt", "move_pvt", "move_pvat", "speedj", "speedl", "move_trajectory"],
             "motion_status": ["wait_move", "pause_move", "resume_move", "stop_move", "get_running_motion", "get_motion_state", "can_move"],
             "system": ["estop", "get_estop_reason", "start_sys", "stop_sys", "reboot", "powerdown", "find_zero"],

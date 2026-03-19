@@ -16,13 +16,13 @@ tar -xzf lebai-robot-skill.tar.gz
 ### 2. 使用
 
 ```python
-from skills import connect_robot, move_to_position, get_current_position, disconnect_robot
+from skills import connect_robot, movej, movel, get_current_position, disconnect_robot
 
 # 连接机器人
 connect_robot(host="127.0.0.1", simu=True)
 
-# 移动到位置
-move_to_position(x=200, y=0, z=200, rx=180, ry=0, rz=0, speed=50)
+# 移动到笛卡尔位置 (字典格式：{x, y, z, rx, ry, rz})
+movel(p={"x": 0.2, "y": 0, "z": 0.2, "rx": 3.14159, "ry": 0, "rz": 0}, a=25, v=25)
 
 # 获取当前位置
 pos = get_current_position()
@@ -38,7 +38,7 @@ disconnect_robot()
 - `connect_robot`, `disconnect_robot`, `is_connected`, `wait_disconnect`
 
 ### 运动控制
-- **基本**: `towardj`, `movej`, `movel`, `movec`, `move_to_position`, `move_to_joint_angles`
+- **基本**: `towardj`, `movej`, `movel`, `movec`
 - **高级**: `move_pt`, `move_pvt`, `move_pvat`, `speedj`, `speedl`, `move_trajectory`
 - **状态**: `wait_move`, `pause_move`, `resume_move`, `stop_move`, `get_running_motion`
 

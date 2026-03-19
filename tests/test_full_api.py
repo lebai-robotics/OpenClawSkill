@@ -8,7 +8,7 @@ Lebai Robot Skill - 完整 API 测试
 from skills.lebai_robot_full import (
     connect_robot, disconnect_robot, get_robot_state, get_current_position,
     get_current_joints, estop, get_kin_data, get_phy_data,
-    move_to_position, towardj, wait_move,
+    towardj, wait_move,
     set_do, get_di, set_ao, get_ai,
     control_gripper, init_gripper,
     save_pose, load_pose,
@@ -42,7 +42,7 @@ def main():
     joints = get_current_joints()
     if joints.get('success'):
         j = joints['joints']
-        print(f"   关节：J1={j['j1']:.1f}, J2={j['j2']:.1f}, J3={j['j3']:.1f}...")
+        print(f"   关节：J1={j[0]:.1f}, J2={j[1]:.1f}, J3={j[2]:.1f}...")
     
     # 3. 运动学数据
     print("\n3. 运动学数据...")
@@ -82,7 +82,7 @@ def main():
     print("\n可用的接口类别:")
     print("""
     - 连接管理：connect_robot, disconnect_robot, is_connected, wait_disconnect
-    - 基本运动：towardj, movej, movel, movec, move_to_position, move_to_joint_angles
+    - 基本运动：towardj, movej, movel, movec
     - 高级运动：move_pt, move_pvt, move_pvat, speedj, speedl, move_trajectory
     - 运动状态：wait_move, pause_move, resume_move, stop_move, get_running_motion
     - 系统控制：estop, get_estop_reason, start_sys, stop_sys, reboot, powerdown, find_zero

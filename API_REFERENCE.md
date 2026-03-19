@@ -21,16 +21,14 @@
 | `movej` | 关节规划运动 | p, a, v, t, r |
 | `movel` | 直线运动 | p, a, v, t, r |
 | `movec` | 圆弧运动 | via, p, rad, a, v, t, r |
-| `move_to_position` | 移动到笛卡尔位置 | x, y, z, rx, ry, rz, speed, wait |
-| `move_to_joint_angles` | 移动到关节角度 | j1-j6, speed, wait |
 
 ### 3. 高级运动控制 (5 个)
 
 | 函数 | 描述 | 参数 |
 |------|------|------|
-| `move_pt` | 时间点运动 | p, t |
-| `move_pvt` | 位置 - 速度 - 时间运动 | p, v, t |
-| `move_pvat` | 位置 - 速度 - 加速度 - 时间运动 | p, v, a, t |
+| `move_pt` | 时间点运动 | p (关节数组), t |
+| `move_pvt` | 位置 - 速度 - 时间运动 | p (关节数组), v, t |
+| `move_pvat` | 位置 - 速度 - 加速度 - 时间运动 | p (关节数组), v, a, t |
 | `speedj` | 关节速度控制 | a, v, t |
 | `speedl` | 笛卡尔速度控制 | a, v, t, frame |
 | `move_trajectory` | 执行轨迹 | name, dir |
@@ -232,13 +230,13 @@
 ### 基本运动
 
 ```python
-from skills import connect_robot, move_to_position, get_current_position, disconnect_robot
+from skills import connect_robot, movej, movel, get_current_position, disconnect_robot
 
 # 连接
 connect_robot(host="127.0.0.1", simu=True)
 
-# 移动
-move_to_position(x=200, y=0, z=200, rx=180, ry=0, rz=0, speed=50)
+# 移动到笛卡尔位置 (字典格式：{x, y, z, rx, ry, rz})
+movel(p={"x": 0.2, "y": 0, "z": 0.2, "rx": 3.14159, "ry": 0, "rz": 0}, a=25, v=25)
 
 # 获取位置
 pos = get_current_position()
@@ -264,14 +262,14 @@ print(result['value'])
 ### 保存和加载位姿
 
 ```python
-from skills import save_pose, load_pose, move_to_position
+from skills import save_pose, load_pose, movel
 
 # 保存当前位置
 save_pose(name="home_pose")
 
 # 加载位姿并移动
 pose = load_pose(name="home_pose")
-# 使用 pose['pose'] 进行移动
+# 使用 movel(p=pose['pose'], a=25, v=25) 进行移动
 ```
 
 ### Modbus 通信

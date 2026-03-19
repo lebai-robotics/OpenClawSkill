@@ -17,9 +17,7 @@ from .lebai_robot import (
     movej,
     movel,
     movec,
-    move_to_position,
-    move_to_joint_angles,
-    
+
     # Motion Control - Advanced
     move_pt,
     move_pvt,
@@ -177,8 +175,8 @@ __all__ = [
     "connect_robot", "disconnect_robot", "is_connected", "wait_disconnect",
     
     # Motion Basic
-    "towardj", "movej", "movel", "movec", "move_to_position", "move_to_joint_angles",
-    
+    "towardj", "movej", "movel", "movec",
+
     # Motion Advanced
     "move_pt", "move_pvt", "move_pvat", "speedj", "speedl", "move_trajectory",
     

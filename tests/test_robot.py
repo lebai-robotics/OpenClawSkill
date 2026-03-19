@@ -20,7 +20,7 @@ load_dotenv()
 from skills.lebai_robot import (
     connect_robot,
     disconnect_robot,
-    move_to_position,
+    movel,
     get_robot_status,
     get_current_position,
     get_current_joints,
@@ -75,7 +75,7 @@ def main():
     joints = get_current_joints()
     if joints.get('success'):
         j = joints['joints']
-        angles = ', '.join([f'J{i}={j[f"j{i}"]:.1f}' for i in range(1, 7)])
+        angles = ', '.join([f'J{i}={j[i-1]:.1f}' for i in range(1, 7)])
         print(f'   {angles}')
 
     # 5. 测试移动（可选）
@@ -83,10 +83,10 @@ def main():
     print('5. 测试移动 (Z 轴 +10mm)...')
     if pos.get('success'):
         p = pos['position']
-        move_result = move_to_position(
-            x=p['x'], y=p['y'], z=p['z'] + 10,
-            rx=p['rx'], ry=p['ry'], rz=p['rz'],
-            speed=30
+        move_result = movel(
+            p={"x": p['x'], "y": p['y'], "z": p['z'] + 0.01,
+               "rx": p['rx'], "ry": p['ry'], "rz": p['rz']},
+            a=15, v=15
         )
         print(f'   结果：{move_result["message"]}')
 

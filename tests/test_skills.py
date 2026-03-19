@@ -20,8 +20,6 @@ def test_imports():
     from skills.lebai_robot import (
         connect_robot,
         disconnect_robot,
-        move_to_position,
-        move_to_joint_angles,
         control_gripper,
         get_robot_status,
         get_current_position,
@@ -93,11 +91,11 @@ def test_motion_functions():
     """Test motion functions (should handle not connected gracefully)."""
     print("Testing motion functions...")
 
-    from skills.lebai_robot import move_to_position, emergency_stop
+    from skills.lebai_robot import movel, emergency_stop
     from skills.lebai_batch import execute_motion_sequence
 
     # These should return error when not connected
-    move_result = move_to_position(x=100, y=0, z=200)
+    move_result = movel(p={"x": 0.1, "y": 0, "z": 0.2, "rx": 0, "ry": 0, "rz": 0}, a=25, v=25)
     assert move_result.get("success") == False
     print(f"  Move (not connected): {move_result['message']}")
 

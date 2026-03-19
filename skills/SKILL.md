@@ -20,15 +20,15 @@ Full-featured robotic arm control skill for Lebai robots. Provides access to mot
 ## Usage
 
 ```python
-from skills import connect_robot, move_to_position, get_current_position, disconnect_robot
+from skills import connect_robot, movej, movel, get_current_position, disconnect_robot
 
 # Connect
 connect_robot(host="127.0.0.1", simu=True)
 
-# Move (x, y, z in meters; rx, ry, rz in radians)
-move_to_position(x=0.2, y=0, z=0.2, rx=3.14159, ry=0, rz=0, speed=50)
+# Move to Cartesian position (dict: {x, y, z, rx, ry, rz} in meters and radians)
+movel(p={"x": 0.2, "y": 0, "z": 0.2, "rx": 3.14159, "ry": 0, "rz": 0}, a=25, v=25)
 
-# Get position (x, y, z in meters; rx, ry, rz in radians)
+# Get position (dict: {x, y, z, rx, ry, rz} in meters and radians)
 pos = get_current_position()
 
 # Disconnect
