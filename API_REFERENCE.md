@@ -8,7 +8,7 @@
 
 | 函数 | 描述 | 参数 |
 |------|------|------|
-| `connect_robot` | 连接机器人 | host, simu, robot_id |
+| `connect_robot` | 连接机器人 | host, port, robot_id |
 | `disconnect_robot` | 断开连接 | robot_id |
 | `is_connected` | 检查连接状态 | robot_id |
 | `wait_disconnect` | 等待断开 | robot_id |
@@ -223,7 +223,7 @@
 from skills import connect_robot, movej, movel, get_current_position, disconnect_robot
 
 # 连接
-connect_robot(host="127.0.0.1", simu=True)
+connect_robot(host="127.0.0.1", port=3030)
 
 # 移动到笛卡尔位置 (字典格式：{x, y, z, rx, ry, rz})
 movel(p={"x": 0.2, "y": 0, "z": 0.2, "rx": 3.14159, "ry": 0, "rz": 0}, a=25, v=25)

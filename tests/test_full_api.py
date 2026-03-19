@@ -23,7 +23,7 @@ def main():
     
     # 1. 连接
     print("\n1. 连接测试...")
-    result = connect_robot(host="127.0.0.1", simu=True)
+    result = connect_robot(host="127.0.0.1", port=3030)
     print(f"   连接：{result['message']}")
     if not result.get('success'):
         print("   无法连接，测试终止")
