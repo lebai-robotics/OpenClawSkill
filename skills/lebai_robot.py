@@ -114,25 +114,42 @@ def discover_devices(timeout: int = 3) -> Dict[str, Any]:
         return _error(f"Failed to discover devices: {str(e)}", str(e))
 
 
-def connect_robot(host: str = "127.0.0.1", port: int = None, robot_id: str = "default") -> Dict[str, Any]:
+def connect_robot(host: str = "127.0.0.1", port: Union[int, bool] = False, robot_id: str = "default") -> Dict[str, Any]:
     """
     Connect to a Lebai robot.
 
     Args:
-        host: Robot IP address or hostname
-        port: Port number (optional, defaults to 3030)
-        robot_id: Robot identifier (default: "default")
+        host: Robot IP address or hostname (default: "127.0.0.1")
+        port: Connection port. Accepts int or bool:
+              - True: Simulation mode (port 3030)
+              - False: Real robot mode (port 3031, default)
+              - int: Custom port number
+        robot_id: Robot identifier to register in the SDK (default: "default")
 
     Returns:
-        Connection status and robot information
+        dict: A dictionary containing:
+            - success (bool): Whether the connection was successful
+            - data (dict, optional): Connection details including host, port, robot_id
+            - message (str): Status message
+            - error (str, optional): Error message if connection failed
+
+    Examples:
+        >>> connect_robot("192.168.1.100", True)  # Simulation mode
+        >>> connect_robot("192.168.1.100", False)  # Real robot mode (default)
+        >>> connect_robot("192.168.1.100", 3030)  # Custom port
+        >>> connect_robot("192.168.1.100")  # Defaults to real robot mode (port 3031)
+
+    Raises:
+        Exception: If connection to the robot fails
     """
     try:
         from lebai_sdk import connect
 
-        if port is not None:
-            robot = connect(host, port)
-        else:
-            robot = connect(host)
+        # Handle bool type for port: True=simulation(3030), False=real robot(3031)
+        if isinstance(port, bool):
+            port = 3030 if port else 3031
+
+        robot = connect(host, port)
         time.sleep(0.5)
 
         if robot.is_connected():

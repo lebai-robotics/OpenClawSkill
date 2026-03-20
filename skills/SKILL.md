@@ -19,7 +19,12 @@ discover_devices(timeout=3)
 ### 2. Connect to Robot
 
 ```python
-connect_robot(host="192.168.4.63", port=3030)
+# Simulation mode (port=True or port=3030)
+connect_robot(host="127.0.0.1", port=True)
+
+# Real robot mode (port=False or port=3031, default)
+connect_robot(host="192.168.4.63", port=False)
+connect_robot(host="192.168.4.63")  # Defaults to real robot mode
 ```
 
 ### 3. Basic Motion Control

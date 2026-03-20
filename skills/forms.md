@@ -20,12 +20,14 @@ This document provides guidelines for using Lebai Robot skill functions effectiv
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `host` | string | No | "127.0.0.1" | Robot IP address or hostname |
-| `port` | integer | No | 3030 | Port number |
+| `port` | integer/boolean | No | False (3031) | Port: True=3030 (simulation), False=3031 (real robot), int=custom port |
 | `robot_id` | string | No | "default" | Robot identifier |
 
 **Example:**
 ```json
-{"host": "192.168.4.63", "port": 3030}
+{"host": "192.168.4.63", "port": true}
+{"host": "192.168.4.63", "port": false}
+{"host": "192.168.4.63"}
 ```
 
 ---

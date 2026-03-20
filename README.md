@@ -19,7 +19,15 @@ tar -xzf lebai-robot-skill.tar.gz
 from skills import connect_robot, movej, movel, get_current_position, disconnect_robot
 
 # 连接机器人
-result = connect_robot(host="127.0.0.1", port=3030)
+# 仿真模式 (port=True 或 port=3030)
+result = connect_robot(host="127.0.0.1", port=True)
+# 真机模式 (port=False 或 port=3031, 默认)
+result = connect_robot(host="192.168.1.100", port=False)
+# 默认真机模式
+# result = connect_robot(host="192.168.1.100")
+# 自定义端口
+# result = connect_robot(host="192.168.1.100", port=3030)
+
 if result["success"]:
     print(f"连接成功：{result['data']['host']}")
 
