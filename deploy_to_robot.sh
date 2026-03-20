@@ -4,6 +4,7 @@
 
 USERNAME="${1:-lebai}"
 HOST="${2:-192.168.4.63}"
+PORT="${3:-22}"
 PACKAGE="lebai-robot-skill.tar.gz"
 
 echo "============================================================"
@@ -19,7 +20,7 @@ echo "   ✓ 安装包已创建：$PACKAGE"
 echo
 
 echo "1. 复制安装包到机器人..."
-scp "$PACKAGE" "$USERNAME@$HOST:/home/$USERNAME/"
+scp -P$PORT "$PACKAGE" "$USERNAME@$HOST:/home/$USERNAME/"
 if [ $? -ne 0 ]; then
     echo "✗ scp 失败，请检查网络连接和密码"
     exit 1
@@ -28,7 +29,7 @@ echo "   ✓ 复制成功"
 
 echo
 echo "2. 在机器人上解压和安装..."
-ssh "$USERNAME@$HOST" << 'ENDSSH'
+ssh -p$PORT "$USERNAME@$HOST" << 'ENDSSH'
 cd /home/$USER
 tar -xzf lebai-robot-skill.tar.gz
 ./install_on_robot.sh

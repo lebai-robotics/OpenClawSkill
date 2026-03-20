@@ -859,23 +859,23 @@ def control_gripper(action: str = "open", force: int = None, amplitude: int = No
     Args:
         action: "open", "close", or "set"
         force: Gripper force (0-100)
-        amplitude: Gripper amplitude
+        amplitude: Gripper amplitude (0-100, 0=closed, 100=open)
         robot_id: Robot identifier
     """
     try:
         robot = _get_robot(robot_id)
         if not robot:
             return {"success": False, "message": "Robot not connected"}
-        
+
         if action == "open":
-            robot.set_claw(0)
+            robot.set_claw(force=None, amplitude=100)
         elif action == "close":
-            robot.set_claw(100)
+            robot.set_claw(force=None, amplitude=0)
         elif action == "set":
             robot.set_claw(force=force, amplitude=amplitude)
         else:
             return {"success": False, "message": "Invalid action. Use 'open', 'close', or 'set'"}
-        
+
         return {"success": True, "message": f"Gripper action '{action}' executed"}
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
