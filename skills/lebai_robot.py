@@ -1205,13 +1205,154 @@ def run_plugin_cmd(name: str, params: Dict = None, robot=None, robot_id: str = "
 
 @_robot_required
 def call(method: str, param: str = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
-    """Call arbitrary robot method."""
+    """
+    Call arbitrary robot method via lebai-proto protocol.
+    
+    Args:
+        method: Method name in snake_case format (e.g., "get_kin_data", "set_tcp")
+        param: JSON-formatted parameter string matching the proto definition
+        robot_id: Robot identifier
+    
+    Returns:
+        dict: A dictionary containing:
+            - success (bool): Whether the call was successful
+            - data (dict): Result from the method call
+                - result: The response data from the robot
+    
+    Available Methods (snake_case naming):
+        # AutoService
+        - "set_auto": {"name": int, "value": bool}
+        - "get_auto": {"name": int}
+        
+        # KinematicService
+        - "get_kin_data": null
+        - "set_tcp": {"x": float, "y": float, "z": float, "rx": float, "ry": float, "rz": float}
+        - "get_tcp": null
+        - "set_kin_factor": {"speed_factor": int}
+        - "get_kin_factor": null
+        
+        # MotionService
+        - "pause_move": null
+        - "resume_move": null
+        - "stop_move": null
+        - "wait_move": {"id": int}
+        - "get_running_motion": null
+        - "get_motion_state": {"id": int}
+        - "start_teach_mode": null
+        - "end_teach_mode": null
+        
+        # ClawService
+        - "init_claw": {"force": bool}
+        - "set_claw": {"force": float, "amplitude": float}
+        - "get_claw": null
+        
+        # IoService
+        - "set_do": {"device": int, "pin": int, "value": int}
+        - "get_do": {"device": int, "pin": int}
+        - "get_di": {"device": int, "pin": int}
+        - "set_ao": {"device": int, "pin": int, "value": float}
+        - "get_ao": {"device": int, "pin": int}
+        - "get_ai": {"device": int, "pin": int}
+        
+        # SafetyService
+        - "enable_collision_detector": null
+        - "disable_collision_detector": null
+        - "set_collision_detector": {"action": int, "pause_time": int, "sensitivity": int}
+        - "enable_limit": null
+        - "disable_limit": null
+        
+        # DynamicService
+        - "set_payload": {"mass": float, "cog": {"x": float, "y": float, "z": float}}
+        - "get_payload": null
+        - "set_gravity": {"x": float, "y": float, "z": float}
+        - "get_gravity": null
+        
+        # PostureService
+        - "get_forward_kin": {"pose": {"kind": int, "joint": [...]}}
+        - "get_inverse_kin": {"pose": {...}, "refer": [...]}
+        - "get_pose_inverse": {"pose": {...}}
+        - "get_pose_add": {"pose": {...}, "delta": {...}}
+        
+        # LedService
+        - "set_led": {"mode": int, "speed": int, "colors": [...]}
+        - "set_voice": {"voice": int, "volume": int}
+        - "set_fan": {"mode": int}
+        
+        # SignalService
+        - "set_signal": {"key": int, "value": int}
+        - "get_signal": {"key": int}
+        - "add_signal": {"key": int, "value": int}
+        
+        # SerialService
+        - "set_serial_baud_rate": {"device": str, "baud_rate": int}
+        - "write_serial": {"device": str, "data": [...]}
+        - "read_serial": {"device": str, "len": int}
+        
+        # ModbusService
+        - "read_coils": {"device": str, "pin": str, "count": int}
+        - "write_single_coil": {"device": str, "pin": str, "value": bool}
+        - "read_holding_registers": {"device": str, "pin": str, "count": int}
+        - "write_single_register": {"device": str, "pin": str, "value": int}
+        
+        # System
+        - "get_version": null
+        - "get_robot_state": null
+        - "estop": null
+        - "start_sys": null
+        - "stop_sys": null
+        - "reboot": null
+    
+    Usage:
+        # Get kinematic data
+        result = call("get_kin_data", None)
+        
+        # Set TCP
+        result = call("set_tcp", '{"x": 0.1, "y": 0.0, "z": 0.05, "rx": 0, "ry": 0, "rz": 0}')
+        
+        # Set digital output
+        result = call("set_do", '{"device": 0, "pin": 0, "value": 1}')
+        
+        # Get robot state
+        result = call("get_robot_state", None)
+    
+    Note:
+        Method names use snake_case convention as defined in lebai-proto.
+        Parameters must be valid JSON strings matching the proto message format.
+        See https://lebai-robotics.github.io/lebai-proto/ for complete protocol reference.
+    """
     return _success(data={"result": robot.call(method, param)})
 
 
 @_robot_required
 def subscribe(method: str, param: str = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
-    """Subscribe to robot data."""
+    """
+    Subscribe to robot data stream.
+    
+    Args:
+        method: Subscription method name (e.g., "robot_state", "kin_data", "phy_data", "buttons_status", "task_stdout", "message")
+        param: Optional parameter for the subscription method
+        robot_id: Robot identifier
+    
+    Returns:
+        dict: A dictionary containing:
+            - success (bool): Whether the subscription was successful
+            - data (dict): Subscription object with next() method
+                - subscription: The subscription object from lebai-sdk
+        
+    Usage:
+        # Subscribe to kinematic data
+        result = subscribe("get_kin_data")
+        if result.get("success"):
+            subscription = result["data"]["subscription"]
+            # Call next() to wait for and receive new data
+            data1 = subscription.next()  # First update
+            data2 = subscription.next()  # Second update (blocks until new data arrives)
+            # Can call next() repeatedly to receive latest data
+        
+    Note:
+        The subscription object's next() method is blocking - it waits for new data.
+        Call next() repeatedly to receive continuous updates.
+    """
     return _success(data={"subscription": robot.subscribe(method, param)})
 
 
