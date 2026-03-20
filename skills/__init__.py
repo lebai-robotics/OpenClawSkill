@@ -7,6 +7,7 @@ This package exposes all available lebai-sdk interfaces.
 
 from .lebai_robot import (
     # Connection Management
+    discover_devices,
     connect_robot,
     disconnect_robot,
     is_connected,
@@ -163,7 +164,7 @@ from .lebai_robot import (
 
 __all__ = [
     # Connection
-    "connect_robot", "disconnect_robot", "is_connected", "wait_disconnect",
+    "discover_devices", "connect_robot", "disconnect_robot", "is_connected", "wait_disconnect",
     
     # Motion Basic
     "towardj", "movej", "movel", "movec",

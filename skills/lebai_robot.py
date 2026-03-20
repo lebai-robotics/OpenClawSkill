@@ -38,6 +38,38 @@ def _set_robot(robot_id: str, robot: Any):
 # Connection Management
 # ============================================================================
 
+def discover_devices(timeout: int = 3) -> Dict[str, Any]:
+    """
+    Discover Lebai robots on the local network.
+
+    Args:
+        timeout: Discovery timeout in seconds (default: 3)
+
+    Returns:
+        List of discovered devices with their IP addresses
+    """
+    try:
+        from lebai_sdk import discover_devices as sdk_discover
+
+        result = sdk_discover(timeout)
+        devices = []
+        if isinstance(result, list):
+            for device in result:
+                if isinstance(device, dict):
+                    devices.append(device)
+                else:
+                    devices.append({"ip": str(device)})
+
+        return {
+            "success": True,
+            "message": f"Discovered {len(devices)} device(s)",
+            "devices": devices,
+            "count": len(devices)
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Failed to discover devices: {str(e)}", "error": str(e)}
+
+
 def connect_robot(host: str = "127.0.0.1", port: int = None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Connect to a Lebai robot.
@@ -1787,7 +1819,7 @@ if __name__ == "__main__":
         "message": "Lebai Robot Control Skill - Complete API",
         "description": "Comprehensive control over Lebai robotic arms",
         "categories": {
-            "connection": ["connect_robot", "disconnect_robot", "is_connected", "wait_disconnect"],
+            "connection": ["discover_devices", "connect_robot", "disconnect_robot", "is_connected", "wait_disconnect"],
             "motion_basic": ["towardj", "movej", "movel", "movec"],
             "motion_advanced": ["move_pt", "move_pvt", "move_pvat", "speedj", "speedl", "move_trajectory"],
             "motion_status": ["wait_move", "pause_move", "resume_move", "stop_move", "get_running_motion", "get_motion_state", "can_move"],
