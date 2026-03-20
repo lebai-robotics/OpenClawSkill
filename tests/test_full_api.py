@@ -5,7 +5,7 @@ Lebai Robot Skill - 完整 API 测试
 测试所有可用的接口类别。
 """
 
-from skills.lebai_robot_full import (
+from skills.lebai_robot import (
     connect_robot, disconnect_robot, get_robot_state, get_current_position,
     get_current_joints, estop, get_kin_data, get_phy_data,
     towardj, wait_move,
@@ -20,65 +20,69 @@ def main():
     print("=" * 60)
     print("Lebai Robot Skill - 完整 API 测试")
     print("=" * 60)
-    
+
     # 1. 连接
     print("\n1. 连接测试...")
     result = connect_robot(host="127.0.0.1", port=3030)
-    print(f"   连接：{result['message']}")
+    print(f"   连接：{result.get('message', 'Unknown')}")
     if not result.get('success'):
         print("   无法连接，测试终止")
         return
-    
+
     # 2. 基本状态
     print("\n2. 基本状态读取...")
     state = get_robot_state()
-    print(f"   机器人状态：{state.get('status', 'unknown')}")
-    
+    if state.get('success'):
+        print(f"   机器人状态：{state.get('data', {}).get('status', 'unknown')}")
+
     pos = get_current_position()
-    if pos.get('success'):
-        p = pos['position']
+    if pos.get('success') and pos.get('data'):
+        p = pos['data']
         print(f"   TCP: X={p['x']:.1f}mm, Y={p['y']:.1f}mm, Z={p['z']:.1f}mm")
-    
+
     joints = get_current_joints()
-    if joints.get('success'):
-        j = joints['joints']
-        print(f"   关节：J1={j[0]:.1f}, J2={j[1]:.1f}, J3={j[2]:.1f}...")
-    
+    if joints.get('success') and joints.get('data'):
+        j = joints['data'].get('joints', [])
+        if len(j) >= 3:
+            print(f"   关节：J1={j[0]:.1f}, J2={j[1]:.1f}, J3={j[2]:.1f}...")
+
     # 3. 运动学数据
     print("\n3. 运动学数据...")
     kin = get_kin_data()
-    if kin.get('success'):
-        kd = kin['kin_data']
+    if kin.get('success') and kin.get('data'):
+        kd = kin['data'].get('kin_data', {})
         print(f"   实际关节：{len(kd.get('actual_joint_pose', []))} 轴")
         print(f"   实际 TCP: {kd.get('actual_tcp_pose', {})}")
-    
+
     # 4. 物理数据
     print("\n4. 物理数据...")
     phy = get_phy_data()
-    if phy.get('success'):
-        pd = phy['phy_data']
+    if phy.get('success') and phy.get('data'):
+        pd = phy['data'].get('phy_data', {})
         print(f"   关节温度：{pd.get('joint_temp', 'N/A')}")
         print(f"   关节电压：{pd.get('joint_voltage', 'N/A')}")
-    
+
     # 5. 任务
     print("\n5. 任务管理...")
     tasks = get_task_list()
-    print(f"   任务列表：{tasks.get('tasks', [])}")
-    
+    if tasks.get('success'):
+        print(f"   任务列表：{tasks.get('data', {}).get('tasks', [])}")
+
     # 6. 调用任意方法
     print("\n6. call 方法测试...")
     result = call("get_version", None)
-    print(f"   版本：{result.get('result', 'N/A')}")
-    
+    if result.get('success'):
+        print(f"   版本：{result.get('data', {}).get('result', 'N/A')}")
+
     # 7. 断开
     print("\n7. 断开连接...")
     disconnect_robot()
     print("   已断开")
-    
+
     print("\n" + "=" * 60)
     print("测试完成!")
     print("=" * 60)
-    
+
     print("\n可用的接口类别:")
     print("""
     - 连接管理：connect_robot, disconnect_robot, is_connected, wait_disconnect

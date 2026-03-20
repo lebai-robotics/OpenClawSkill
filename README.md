@@ -19,17 +19,52 @@ tar -xzf lebai-robot-skill.tar.gz
 from skills import connect_robot, movej, movel, get_current_position, disconnect_robot
 
 # 连接机器人
-connect_robot(host="127.0.0.1", port=3030)
+result = connect_robot(host="127.0.0.1", port=3030)
+if result["success"]:
+    print(f"连接成功：{result['data']['host']}")
 
 # 移动到笛卡尔位置 (字典格式：{x, y, z, rx, ry, rz})
-movel(p={"x": 0.2, "y": 0, "z": 0.2, "rx": 3.14159, "ry": 0, "rz": 0}, a=1, v=0.2)
+move_result = movel(p={"x": 0.2, "y": 0, "z": 0.2, "rx": 3.14159, "ry": 0, "rz": 0}, a=1, v=0.2)
+if move_result["success"]:
+    print(f"运动 ID: {move_result['data']['id']}")
 
 # 获取当前位置
-pos = get_current_position()
-print(f"位置：{pos['position']}")
+pos_result = get_current_position()
+if pos_result["success"]:
+    pos = pos_result["data"]
+    print(f"位置：X={pos['x']:.3f}m, Y={pos['y']:.3f}m, Z={pos['z']:.3f}m")
 
-# 断开
+# 断开连接
 disconnect_robot()
+```
+
+## 返回格式
+
+所有函数返回统一的标准化格式：
+
+### 成功响应
+```python
+# 带数据的成功响应
+{
+    "success": True,
+    "data": {...},      # 可选，返回的数据
+    "message": "..."    # 可选，描述信息
+}
+
+# 示例
+{"success": True, "data": {"status": "RUNNING"}, "message": "Success"}
+```
+
+### 错误响应
+```python
+{
+    "success": False,
+    "message": "...",   # 错误描述
+    "error": "..."      # 可选，详细错误信息
+}
+
+# 示例
+{"success": False, "message": "Robot not connected", "error": "Not connected"}
 ```
 
 ## 接口分类
@@ -77,27 +112,31 @@ disconnect_robot()
 
 ## 完整 API
 
-详见：[API_REFERENCE.md](API_REFERENCE.md)
+详见：[skills/references/api.md](skills/references/api.md)
 
 ## 测试
 
 ```bash
 # 运行完整测试
-python3 test_full_api.py
+python3 tests/test_full_api.py
 
 # 测试机器人连接
-python3 test_robot.py
+python3 tests/test_robot.py
+
+# 运行单元测试
+python3 tests/test_skills.py
 ```
 
 ## 文件结构
 
 ```
-OpenClawSkill
+lebai-mcp/
 ├── skills/
 │   ├── __init__.py          # 技能包入口
 │   ├── lebai_robot.py       # 完整 API (135+ 函数)
-│   ├── lebai_batch.py       # 批量操作
-│   └── SKILL.md             # OpenClaw 元数据
+│   ├── SKILL.md             # OpenClaw 元数据
+│   └── references/
+│       └── api.md           # 完整 API 文档
 ├── tests/
 │   ├── test_full_api.py     # API 测试
 │   ├── test_robot.py        # 机器人测试
@@ -105,7 +144,6 @@ OpenClawSkill
 ├── install.sh               # 安装脚本
 ├── install_on_robot.sh      # 机器人端安装脚本
 ├── deploy_to_robot.sh       # 一键部署脚本
-├── API_REFERENCE.md         # 完整 API 文档
 └── README.md                # 本文档
 ```
 
@@ -135,4 +173,4 @@ LEBAI_ROBOT_PORT=3030
 ## 支持
 
 - GitHub: https://github.com/lebai-robotics/OpenClawSkill
-- 测试：ssh lebai@192.168.4.63
+- 官方文档：https://help.lebai.ltd

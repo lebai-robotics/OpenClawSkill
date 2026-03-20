@@ -42,12 +42,12 @@ def test_connect_disconnect():
     result = connect_robot(host="192.168.4.63", port=3030)
     assert "success" in result
     assert "message" in result
-    print(f"  Connect result: {result['message']}")
+    print(f"  Connect result: {result.get('message', 'Unknown')}")
 
     # Disconnect
     result = disconnect_robot(robot_id="default")
     assert result.get("success") == True
-    print(f"  Disconnect result: {result['message']}")
+    print(f"  Disconnect result: {result.get('message', 'Unknown')}")
 
     print("  ✓ Connect/disconnect test passed")
     return True
@@ -66,15 +66,15 @@ def test_status_functions():
     # These should return error when not connected
     status = get_robot_state()
     assert status.get("success") == False
-    print(f"  Status (not connected): {status['message']}")
+    print(f"  Status (not connected): {status.get('message', 'Unknown')}")
 
     position = get_current_position()
     assert position.get("success") == False
-    print(f"  Position (not connected): {position['message']}")
+    print(f"  Position (not connected): {position.get('message', 'Unknown')}")
 
     joints = get_current_joints()
     assert joints.get("success") == False
-    print(f"  Joints (not connected): {joints['message']}")
+    print(f"  Joints (not connected): {joints.get('message', 'Unknown')}")
 
     print("  ✓ Status functions test passed")
     return True
@@ -89,11 +89,11 @@ def test_motion_functions():
     # These should return error when not connected
     move_result = movel(p={"x": 0.1, "y": 0, "z": 0.2, "rx": 0, "ry": 0, "rz": 0}, a=1, v=0.2)
     assert move_result.get("success") == False
-    print(f"  Move (not connected): {move_result['message']}")
+    print(f"  Move (not connected): {move_result.get('message', 'Unknown')}")
 
     stop_result = estop()
     assert stop_result.get("success") == False
-    print(f"  E-stop (not connected): {stop_result['message']}")
+    print(f"  E-stop (not connected): {stop_result.get('message', 'Unknown')}")
 
     print("  ✓ Motion functions test passed")
     return True
@@ -107,7 +107,7 @@ def test_gripper_control():
 
     result = control_gripper(action="open")
     assert "success" in result
-    print(f"  Gripper (not connected): {result['message']}")
+    print(f"  Gripper (not connected): {result.get('message', 'Unknown')}")
 
     print("  ✓ Gripper control test passed")
     return True

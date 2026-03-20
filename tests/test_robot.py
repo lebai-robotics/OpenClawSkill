@@ -44,7 +44,7 @@ def main():
     # 1. 连接
     print('1. 连接机器人...')
     result = connect_robot(host=host, port=port)
-    print(f'   结果：{result["message"]}')
+    print(f'   结果：{result.get("message", "Unknown")}')
 
     if not result.get('success'):
         print()
@@ -58,48 +58,56 @@ def main():
     print()
     print('2. 获取机器人状态...')
     status = get_robot_state()
-    print(f'   状态：{status.get("status", "unknown")}')
+    if status.get('success'):
+        print(f'   状态：{status.get("data", {}).get("status", "unknown")}')
+    else:
+        print(f'   状态：获取失败 - {status.get("message")}')
 
     # 3. 获取当前位置
     print()
     print('3. 获取当前 TCP 位置...')
     pos = get_current_position()
-    if pos.get('success'):
-        p = pos['position']
+    if pos.get('success') and pos.get('data'):
+        p = pos['data']
         print(f'   位置：X={p["x"]:.1f}, Y={p["y"]:.1f}, Z={p["z"]:.1f}')
         print(f'   姿态：RX={p["rx"]:.1f}, RY={p["ry"]:.1f}, RZ={p["rz"]:.1f}')
+    else:
+        print(f'   位置：获取失败 - {pos.get("message")}')
 
     # 4. 获取关节角度
     print()
     print('4. 获取当前关节角度...')
     joints = get_current_joints()
-    if joints.get('success'):
-        j = joints['joints']
-        angles = ', '.join([f'J{i}={j[i-1]:.1f}' for i in range(1, 7)])
-        print(f'   {angles}')
+    if joints.get('success') and joints.get('data'):
+        j = joints['data'].get('joints', [])
+        if len(j) >= 6:
+            angles = ', '.join([f'J{i}={j[i-1]:.1f}' for i in range(1, 7)])
+            print(f'   {angles}')
+    else:
+        print(f'   关节角度：获取失败 - {joints.get("message")}')
 
     # 5. 测试移动（可选）
     print()
     print('5. 测试移动 (Z 轴 +10mm)...')
-    if pos.get('success'):
-        p = pos['position']
+    if pos.get('success') and pos.get('data'):
+        p = pos['data']
         move_result = movel(
             p={"x": p['x'], "y": p['y'], "z": p['z'] + 0.01,
                "rx": p['rx'], "ry": p['ry'], "rz": p['rz']},
             a=15, v=15
         )
-        print(f'   结果：{move_result["message"]}')
+        print(f'   结果：{move_result.get("message", "Unknown")}')
 
     # 6. 初始化并测试夹爪
     print()
     print('6. 测试夹爪...')
     init_result = init_gripper()
     if init_result.get('success'):
-        print(f'   初始化：{init_result["message"]}')
+        print(f'   初始化：{init_result.get("message", "Unknown")}')
         gripper = control_gripper(action='open')
-        print(f'   打开：{gripper["message"]}')
+        print(f'   打开：{gripper.get("message", "Unknown")}')
     else:
-        print(f'   初始化失败：{init_result["message"]}')
+        print(f'   初始化失败：{init_result.get("message", "Unknown")}')
         print(f'   (夹爪可能未连接或已初始化)')
 
     # 7. 断开

@@ -18,7 +18,8 @@ All functions are synchronous - no asyncio required.
 import json
 import time
 import inspect
-from typing import Optional, Dict, Any, List, Union
+from functools import wraps
+from typing import Optional, Dict, Any, List, Union, Callable
 
 # Global registry for robot connections
 _robot_registry: Dict[str, Any] = {}
@@ -32,6 +33,51 @@ def _get_robot(robot_id: str = "default"):
 def _set_robot(robot_id: str, robot: Any):
     """Store robot instance in registry."""
     _robot_registry[robot_id] = robot
+
+
+# ============================================================================
+# Helper Functions and Decorators
+# ============================================================================
+
+# Standardized return format helpers
+def _success(data: Any = None, message: str = None) -> Dict[str, Any]:
+    """Create standardized success response."""
+    result = {"success": True}
+    if data is not None:
+        result["data"] = data
+    if message:
+        result["message"] = message
+    return result
+
+
+def _error(message: str, error: str = None) -> Dict[str, Any]:
+    """Create standardized error response."""
+    result = {"success": False, "message": message}
+    if error:
+        result["error"] = error
+    return result
+
+
+def _robot_required(func: Callable) -> Callable:
+    """
+    Decorator to check robot connection before executing function.
+
+    Usage:
+        @_robot_required
+        def my_function(robot, ...):
+            robot.some_method()
+            return _success(data=..., message=...)
+    """
+    @wraps(func)
+    def wrapper(robot_id: str = "default", *args, **kwargs) -> Dict[str, Any]:
+        robot = _get_robot(robot_id)
+        if not robot:
+            return _error("Robot not connected", "Not connected")
+        try:
+            return func(robot=robot, robot_id=robot_id, *args, **kwargs)
+        except Exception as e:
+            return _error(f"Error: {str(e)}", str(e))
+    return wrapper
 
 
 # ============================================================================
@@ -60,14 +106,12 @@ def discover_devices(timeout: int = 3) -> Dict[str, Any]:
                 else:
                     devices.append({"ip": str(device)})
 
-        return {
-            "success": True,
-            "message": f"Discovered {len(devices)} device(s)",
-            "devices": devices,
-            "count": len(devices)
-        }
+        return _success(
+            data={"devices": devices, "count": len(devices)},
+            message=f"Discovered {len(devices)} device(s)"
+        )
     except Exception as e:
-        return {"success": False, "message": f"Failed to discover devices: {str(e)}", "error": str(e)}
+        return _error(f"Failed to discover devices: {str(e)}", str(e))
 
 
 def connect_robot(host: str = "127.0.0.1", port: int = None, robot_id: str = "default") -> Dict[str, Any]:
@@ -93,23 +137,18 @@ def connect_robot(host: str = "127.0.0.1", port: int = None, robot_id: str = "de
 
         if robot.is_connected():
             _set_robot(robot_id, robot)
-            return {
-                "success": True,
-                "message": f"Connected to robot at {host}",
-                "robot_info": {
+            return _success(
+                data={
                     "host": host,
                     "port": port,
                     "connected": True,
                     "robot_id": robot_id
-                }
-            }
-        return {
-            "success": False,
-            "message": f"Failed to connect to robot at {host}",
-            "robot_info": {"host": host, "port": port, "connected": False}
-        }
+                },
+                message=f"Connected to robot at {host}"
+            )
+        return _error(f"Failed to connect to robot at {host}")
     except Exception as e:
-        return {"success": False, "message": f"Failed to connect: {str(e)}", "error": str(e)}
+        return _error(f"Failed to connect: {str(e)}", str(e))
 
 
 def disconnect_robot(robot_id: str = "default") -> Dict[str, Any]:
@@ -118,40 +157,31 @@ def disconnect_robot(robot_id: str = "default") -> Dict[str, Any]:
         robot = _get_robot(robot_id)
         if robot:
             del _robot_registry[robot_id]
-        return {"success": True, "message": f"Disconnected from robot {robot_id}"}
+        return _success(message=f"Disconnected from robot {robot_id}")
     except Exception as e:
-        return {"success": False, "message": f"Failed to disconnect: {str(e)}", "error": str(e)}
+        return _error(f"Failed to disconnect: {str(e)}", str(e))
 
 
-def is_connected(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def is_connected(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Check if robot is connected."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "connected": False, "message": "Robot not connected"}
-        return {"success": True, "connected": robot.is_connected()}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"connected": robot.is_connected()})
 
 
-def wait_disconnect(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def wait_disconnect(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Wait for robot disconnection."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.wait_disconnect()
-        return {"success": True, "message": "Wait disconnect completed", "result": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    result = robot.wait_disconnect()
+    return _success(data={"result": result}, message="Wait disconnect completed")
 
 
 # ============================================================================
 # Motion Control - Basic
 # ============================================================================
 
-def towardj(p: List[float], a: float, v: float,
-            t: float = None, r: float = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def towardj(p: List[float], a: float, v: float, t: float = None, r: float = None,
+            robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Move to joint position (joint interpolation).
 
@@ -162,23 +192,14 @@ def towardj(p: List[float], a: float, v: float,
         t: Timeout (optional)
         r: Blend radius (optional)
         robot_id: Robot identifier
-
-    Returns:
-        Motion execution status
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-
-        result = robot.towardj(p, a, v, t, r)
-        return {"success": True, "message": "Move command sent", "id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    result = robot.towardj(p, a, v, t, r)
+    return _success(data={"id": result}, message="Move command sent")
 
 
-def movej(p: List[float], a: float, v: float,
-          t: float = None, r: float = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def movej(p: List[float], a: float, v: float, t: float = None, r: float = None,
+          robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Move to joint position with planning.
 
@@ -190,19 +211,13 @@ def movej(p: List[float], a: float, v: float,
         r: Blend radius (optional)
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-
-        result = robot.movej(p, a, v, t, r)
-        return {"success": True, "message": "Move command sent", "id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    result = robot.movej(p, a, v, t, r)
+    return _success(data={"id": result}, message="Move command sent")
 
 
-def movel(p: Dict[str, float], a: float, v: float,
-          t: float = None, r: float = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def movel(p: Dict[str, float], a: float, v: float, t: float = None, r: float = None,
+          robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Move to Cartesian position (linear motion).
 
@@ -214,20 +229,13 @@ def movel(p: Dict[str, float], a: float, v: float,
         r: Blend radius (optional)
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-
-        result = robot.movel(p, a, v, t, r)
-        return {"success": True, "message": "Move command sent", "id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    result = robot.movel(p, a, v, t, r)
+    return _success(data={"id": result}, message="Move command sent")
 
 
-def movec(via: Dict[str, float], p: Dict[str, float],
-          rad: float, a: float, v: float, t: float = None, r: float = None,
-          robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def movec(via: Dict[str, float], p: Dict[str, float], rad: float, a: float, v: float,
+          t: float = None, r: float = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Circular motion.
 
@@ -241,22 +249,16 @@ def movec(via: Dict[str, float], p: Dict[str, float],
         r: Blend radius (optional)
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected", "error": "Not connected"}
-
-        result = robot.movec(via, p, rad, a, v, t, r)
-        return {"success": True, "message": "Move command sent", "id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    result = robot.movec(via, p, rad, a, v, t, r)
+    return _success(data={"id": result}, message="Move command sent")
 
 
 # ============================================================================
 # Motion Control - Advanced
 # ============================================================================
 
-def move_pt(p: List[float], t: float, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def move_pt(p: List[float], t: float, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Move through points with time.
 
@@ -265,17 +267,12 @@ def move_pt(p: List[float], t: float, robot_id: str = "default") -> Dict[str, An
         t: Time
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.move_pt(p, t)
-        return {"success": True, "message": "Move pt command sent"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.move_pt(p, t)
+    return _success(message="Move pt command sent")
 
 
-def move_pvt(p: List[float], v: List[float], t: float, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def move_pvt(p: List[float], v: List[float], t: float, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Move with position, velocity, time.
 
@@ -285,18 +282,13 @@ def move_pvt(p: List[float], v: List[float], t: float, robot_id: str = "default"
         t: Time
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.move_pvt(p, v, t)
-        return {"success": True, "message": "Move pvt command sent"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.move_pvt(p, v, t)
+    return _success(message="Move pvt command sent")
 
 
+@_robot_required
 def move_pvat(p: List[float], v: List[float], a: List[float], t: float,
-              robot_id: str = "default") -> Dict[str, Any]:
+              robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Move with position, velocity, acceleration, time.
 
@@ -307,17 +299,12 @@ def move_pvat(p: List[float], v: List[float], a: List[float], t: float,
         t: Time
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.move_pvat(p, v, a, t)
-        return {"success": True, "message": "Move pvat command sent"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.move_pvat(p, v, a, t)
+    return _success(message="Move pvat command sent")
 
 
-def speedj(a: float, v: List[float], t: float = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def speedj(a: float, v: List[float], t: float = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Joint velocity control.
 
@@ -327,18 +314,13 @@ def speedj(a: float, v: List[float], t: float = None, robot_id: str = "default")
         t: Timeout (optional)
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.speedj(a, v, t)
-        return {"success": True, "message": "Speedj command sent", "id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    result = robot.speedj(a, v, t)
+    return _success(data={"id": result}, message="Speedj command sent")
 
 
+@_robot_required
 def speedl(a: float, v: Dict[str, float], t: float = None, frame: Dict[str, float] = None,
-           robot_id: str = "default") -> Dict[str, Any]:
+           robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Cartesian velocity control.
 
@@ -349,264 +331,157 @@ def speedl(a: float, v: Dict[str, float], t: float = None, frame: Dict[str, floa
         frame: Reference frame (optional)
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.speedl(a, v, t, frame)
-        return {"success": True, "message": "Speedl command sent", "id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    result = robot.speedl(a, v, t, frame)
+    return _success(data={"id": result}, message="Speedl command sent")
 
 
-def move_trajectory(name: str, dir: str = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def move_trajectory(name: str, dir: str = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Execute a saved trajectory."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.move_trajectory(name, dir)
-        return {"success": True, "message": "Trajectory command sent", "id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    result = robot.move_trajectory(name, dir)
+    return _success(data={"id": result}, message="Trajectory command sent")
 
 
 # ============================================================================
 # Motion Control - Status
 # ============================================================================
 
-def wait_move(id: int = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def wait_move(id: int = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Wait for motion to complete."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.wait_move(id)
-        return {"success": True, "message": "Motion completed"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.wait_move(id)
+    return _success(message="Motion completed")
 
 
-def pause_move(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def pause_move(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Pause current motion."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.pause_move()
-        return {"success": True, "message": "Motion paused"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.pause_move()
+    return _success(message="Motion paused")
 
 
-def resume_move(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def resume_move(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Resume paused motion."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.resume_move()
-        return {"success": True, "message": "Motion resumed"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.resume_move()
+    return _success(message="Motion resumed")
 
 
-def stop_move(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def stop_move(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Stop current motion."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.stop_move()
-        return {"success": True, "message": "Motion stopped"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.stop_move()
+    return _success(message="Motion stopped")
 
 
-def get_running_motion(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_running_motion(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get running motion ID."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_running_motion()
-        return {"success": True, "id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"id": robot.get_running_motion()})
 
 
-def get_motion_state(id: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_motion_state(id: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get motion state by ID."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_motion_state(id)
-        return {"success": True, "state": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"state": robot.get_motion_state(id)})
 
 
-def can_move(robot_state, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def can_move(robot_state: Any, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Check if robot can move."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.can_move(robot_state)
-        return {"success": True, "can_move": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"can_move": robot.can_move(robot_state)})
 
 
 # ============================================================================
 # System Control
 # ============================================================================
 
-def estop(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def estop(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Emergency stop."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.estop()
-        return {"success": True, "message": "Emergency stop executed"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.estop()
+    return _success(message="Emergency stop executed")
 
 
-def get_estop_reason(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_estop_reason(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get emergency stop reason."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_estop_reason()
-        return {"success": True, "reason": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"reason": robot.get_estop_reason()})
 
 
-def start_sys(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def start_sys(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Start system."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.start_sys()
-        return {"success": True, "message": "System started"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.start_sys()
+    return _success(message="System started")
 
 
-def stop_sys(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def stop_sys(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Stop system."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.stop_sys()
-        return {"success": True, "message": "System stopped"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.stop_sys()
+    return _success(message="System stopped")
 
 
-def reboot(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def reboot(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Reboot robot controller."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.reboot()
-        return {"success": True, "message": "Reboot command sent"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.reboot()
+    return _success(message="Reboot command sent")
 
 
-def powerdown(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def powerdown(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Power down robot."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.powerdown()
-        return {"success": True, "message": "Powerdown command sent"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.powerdown()
+    return _success(message="Powerdown command sent")
 
 
-def find_zero(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def find_zero(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Find zero position (homing)."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.find_zero()
-        return {"success": True, "message": "Homing started"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.find_zero()
+    return _success(message="Homing started")
 
 
 # ============================================================================
 # Teaching Mode
 # ============================================================================
 
-def teach_mode(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def teach_mode(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Enter teaching mode."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.teach_mode()
-        return {"success": True, "message": "Teaching mode enabled"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.teach_mode()
+    return _success(message="Teaching mode enabled")
 
 
-def end_teach_mode(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def end_teach_mode(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Exit teaching mode."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.end_teach_mode()
-        return {"success": True, "message": "Teaching mode disabled"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.end_teach_mode()
+    return _success(message="Teaching mode disabled")
 
 
 # ============================================================================
 # Status and Data
 # ============================================================================
 
-def get_robot_state(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_robot_state(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get robot state (IDLE, RUNNING, ESTOP, etc.)."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_robot_state()
-        return {"success": True, "status": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"status": robot.get_robot_state()})
 
 
-def get_tcp(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_tcp(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Get TCP offset relative to the flange end.
-    
+
     Returns the configured TCP tool center point offset from the flange.
     This is NOT the TCP position in base frame.
     For TCP position relative to base frame, use get_current_position().
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_tcp()
-        return {"success": True, "tcp": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"tcp": robot.get_tcp()})
 
 
 def get_current_position(robot_id: str = "default") -> Dict[str, Any]:
@@ -615,276 +490,183 @@ def get_current_position(robot_id: str = "default") -> Dict[str, Any]:
 
     Returns the TCP position relative to the robot base frame.
     For TCP offset relative to flange, use get_tcp().
-    
+
     Returns:
         position: {x, y, z, rx, ry, rz} dict in meters and radians
     """
     try:
         robot = _get_robot(robot_id)
         if not robot:
-            return {"success": False, "message": "Robot not connected"}
+            return _error("Robot not connected")
 
         kin_data = robot.get_kin_data()
         if isinstance(kin_data, dict) and 'actual_tcp_pose' in kin_data:
             tcp = kin_data['actual_tcp_pose']
-            return {
-                "success": True,
-                "position": {
-                    "x": tcp.get('x', 0),
-                    "y": tcp.get('y', 0),
-                    "z": tcp.get('z', 0),
-                    "rx": tcp.get('rx', 0),
-                    "ry": tcp.get('ry', 0),
-                    "rz": tcp.get('rz', 0)
-                }
-            }
-        return {"success": False, "message": "Unable to parse TCP data"}
+            return _success(data={"position": {
+                "x": tcp.get('x', 0),
+                "y": tcp.get('y', 0),
+                "z": tcp.get('z', 0),
+                "rx": tcp.get('rx', 0),
+                "ry": tcp.get('ry', 0),
+                "rz": tcp.get('rz', 0)
+            }})
+        return _error("Unable to parse TCP data")
     except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+        return _error(f"Error: {str(e)}", str(e))
 
 
 def get_current_joints(robot_id: str = "default") -> Dict[str, Any]:
     """
     Get current joint angles in radians.
-    
+
     Returns:
         joints: [j1, j2, j3, j4, j5, j6] array in radians
     """
     try:
         robot = _get_robot(robot_id)
         if not robot:
-            return {"success": False, "message": "Robot not connected"}
+            return _error("Robot not connected")
 
         kin_data = robot.get_kin_data()
         if isinstance(kin_data, dict) and 'actual_joint_pose' in kin_data:
             joints = kin_data['actual_joint_pose']
-            return {
-                "success": True,
-                "joints": list(joints)
-            }
-        return {"success": False, "message": "Unable to parse joint data"}
+            return _success(data={"joints": list(joints)})
+        return _error("Unable to parse joint data")
     except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+        return _error(f"Error: {str(e)}", str(e))
 
 
-def get_kin_data(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_kin_data(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get kinematic data."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_kin_data()
-        return {"success": True, "kin_data": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"kin_data": robot.get_kin_data()})
 
 
-def get_phy_data(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_phy_data(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get physical data (joint temp, voltage, etc.)."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_phy_data()
-        return {"success": True, "phy_data": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"phy_data": robot.get_phy_data()})
 
 
-def get_payload(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_payload(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get payload configuration."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_payload()
-        return {"success": True, "payload": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"payload": robot.get_payload()})
 
 
-def get_gravity(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_gravity(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get gravity center configuration."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_gravity()
-        return {"success": True, "gravity": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"gravity": robot.get_gravity()})
 
 
-def get_velocity_factor(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_velocity_factor(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get velocity factor."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_velocity_factor()
-        return {"success": True, "velocity_factor": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"velocity_factor": robot.get_velocity_factor()})
 
 
 # ============================================================================
 # Configuration
 # ============================================================================
 
-def set_payload(mass: float = None, cog: List[float] = None, 
-                robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_payload(mass: float = None, cog: List[float] = None,
+                robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set payload configuration."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_payload(mass=mass, cog=cog)
-        return {"success": True, "message": "Payload configured"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_payload(mass=mass, cog=cog)
+    return _success(message="Payload configured")
 
 
-def set_gravity(pose: Dict[str, float],
-                robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_gravity(pose: Dict[str, float], robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Set gravity center.
-    
+
     Args:
         pose: Gravity center - {x, y, z, rx, ry, rz} dict in meters and radians
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_gravity(pose)
-        return {"success": True, "message": "Gravity center configured"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_gravity(pose)
+    return _success(message="Gravity center configured")
 
 
-def set_tcp(pose: Dict[str, float],
-            robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_tcp(pose: Dict[str, float], robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Set TCP offset.
-    
+
     Args:
         pose: TCP offset - {x, y, z, rx, ry, rz} dict in meters and radians
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_tcp(pose)
-        return {"success": True, "message": "TCP configured"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_tcp(pose)
+    return _success(message="TCP configured")
 
 
-def set_velocity_factor(speed_factor: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_velocity_factor(speed_factor: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set global velocity factor."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_velocity_factor(speed_factor)
-        return {"success": True, "message": "Velocity factor set"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_velocity_factor(speed_factor)
+    return _success(message="Velocity factor set")
 
 
-def enable_joint_limits(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def enable_joint_limits(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Enable joint limits."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.enable_joint_limits()
-        return {"success": True, "message": "Joint limits enabled"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.enable_joint_limits()
+    return _success(message="Joint limits enabled")
 
 
-def disable_joint_limits(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def disable_joint_limits(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Disable joint limits."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.disable_joint_limits()
-        return {"success": True, "message": "Joint limits disabled"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.disable_joint_limits()
+    return _success(message="Joint limits disabled")
 
 
-def enable_collision_detector(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def enable_collision_detector(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Enable collision detector."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.enable_collision_detector()
-        return {"success": True, "message": "Collision detector enabled"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.enable_collision_detector()
+    return _success(message="Collision detector enabled")
 
 
-def disable_collision_detector(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def disable_collision_detector(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Disable collision detector."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.disable_collision_detector()
-        return {"success": True, "message": "Collision detector disabled"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.disable_collision_detector()
+    return _success(message="Collision detector disabled")
 
 
-def set_collision_detector_sensitivity(sensitivity: float, 
-                                       robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_collision_detector_sensitivity(sensitivity: float,
+                                       robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set collision detector sensitivity."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_collision_detector_sensitivity(sensitivity)
-        return {"success": True, "message": "Sensitivity configured"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_collision_detector_sensitivity(sensitivity)
+    return _success(message="Sensitivity configured")
 
 
 # ============================================================================
 # Gripper Control
 # ============================================================================
 
-def init_gripper(force: int = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def init_gripper(force: int = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Initialize gripper."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.init_claw(force=force)
-        return {"success": True, "message": "Gripper initialized"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.init_claw(force=force)
+    return _success(message="Gripper initialized")
 
 
-def get_gripper(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_gripper(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get gripper status."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_claw()
-        return {"success": True, "gripper": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"gripper": robot.get_claw()})
 
 
+@_robot_required
 def control_gripper(action: str = "open", force: int = None, amplitude: int = None,
-                    robot_id: str = "default") -> Dict[str, Any]:
+                    robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Control gripper.
 
@@ -894,35 +676,28 @@ def control_gripper(action: str = "open", force: int = None, amplitude: int = No
         amplitude: Gripper amplitude (0-100, 0=closed, 100=open)
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
+    if action == "open":
+        robot.set_claw(force=None, amplitude=100)
+    elif action == "close":
+        robot.set_claw(force=None, amplitude=0)
+    elif action == "set":
+        robot.set_claw(force=force, amplitude=amplitude)
+    else:
+        return _error("Invalid action. Use 'open', 'close', or 'set'")
 
-        if action == "open":
-            robot.set_claw(force=None, amplitude=100)
-        elif action == "close":
-            robot.set_claw(force=None, amplitude=0)
-        elif action == "set":
-            robot.set_claw(force=force, amplitude=amplitude)
-        else:
-            return {"success": False, "message": "Invalid action. Use 'open', 'close', or 'set'"}
-
-        return {"success": True, "message": f"Gripper action '{action}' executed"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(message=f"Gripper action '{action}' executed")
 
 
 # ============================================================================
 # Pose Operations
 # ============================================================================
 
-def save_pose(name: str, pose: Dict[str, float] = None,
-              dir: str = None, refer: List[float] = None,
-              robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def save_pose(name: str, pose: Dict[str, float] = None, dir: str = None,
+              refer: List[float] = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Save pose to file.
-    
+
     Args:
         name: Pose name
         pose: TCP pose - {x, y, z, rx, ry, rz} dict in meters and radians
@@ -930,884 +705,506 @@ def save_pose(name: str, pose: Dict[str, float] = None,
         refer: Reference joint angles (optional)
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.save_pose(name, pose, dir, refer)
-        return {"success": True, "message": f"Pose '{name}' saved"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.save_pose(name, pose, dir, refer)
+    return _success(message=f"Pose '{name}' saved")
 
 
+@_robot_required
 def load_pose(name: str, dir: str = None, raw_pose: bool = None,
-              robot_id: str = "default") -> Dict[str, Any]:
+              robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Load pose from file."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.load_pose(name, dir, raw_pose)
-        return {"success": True, "pose": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"pose": robot.load_pose(name, dir, raw_pose)})
 
 
-def load_tcp(name: str, dir: str = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def load_tcp(name: str, dir: str = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Load TCP configuration from file."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.load_tcp(name, dir)
-        return {"success": True, "tcp": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"tcp": robot.load_tcp(name, dir)})
 
 
-def load_frame(name: str, dir: str = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def load_frame(name: str, dir: str = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Load frame from file."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.load_frame(name, dir)
-        return {"success": True, "frame": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"frame": robot.load_frame(name, dir)})
 
 
-def load_led_style(name: str, dir: str = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def load_led_style(name: str, dir: str = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Load LED style from file."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.load_led_style(name, dir)
-        return {"success": True, "led_style": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"led_style": robot.load_led_style(name, dir)})
 
 
-def load_payload(name: str, dir: str = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def load_payload(name: str, dir: str = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Load payload configuration from file."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.load_payload(name, dir)
-        return {"success": True, "payload": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"payload": robot.load_payload(name, dir)})
 
 
-def pose_inverse(p: Dict[str, float],
-                 robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def pose_inverse(p: Dict[str, float], robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Calculate inverse pose.
-    
+
     Args:
         p: Pose - {x, y, z, rx, ry, rz} dict in meters and radians
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.pose_inverse(p)
-        return {"success": True, "inverse_pose": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"inverse_pose": robot.pose_inverse(p)})
 
 
-def pose_add(pose: Dict[str, float],
-             delta: Dict[str, float], frame: Dict[str, float] = None,
-             robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def pose_add(pose: Dict[str, float], delta: Dict[str, float], frame: Dict[str, float] = None,
+             robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Add delta to pose.
-    
+
     Args:
         pose: Base pose - {x, y, z, rx, ry, rz} dict in meters and radians
         delta: Delta pose - {x, y, z, rx, ry, rz} dict in meters and radians
         frame: Reference frame (optional)
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.pose_add(pose, delta, frame)
-        return {"success": True, "result_pose": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"result_pose": robot.pose_add(pose, delta, frame)})
 
 
-def kinematics_forward(p: List[float],
-                       robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def kinematics_forward(p: List[float], robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Forward kinematics.
-    
+
     Args:
         p: Joint angles - [j1, j2, j3, j4, j5, j6] array in radians
         robot_id: Robot identifier
-    
+
     Returns:
         TCP pose as {x, y, z, rx, ry, rz} dict
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.kinematics_forward(p)
-        return {"success": True, "tcp_pose": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"tcp_pose": robot.kinematics_forward(p)})
 
 
-def kinematics_inverse(p: Dict[str, float],
-                       refer: List[float] = None,
-                       robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def kinematics_inverse(p: Dict[str, float], refer: List[float] = None,
+                       robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Inverse kinematics.
-    
+
     Args:
         p: TCP pose - {x, y, z, rx, ry, rz} dict in meters and radians
         refer: Reference joint angles (optional)
         robot_id: Robot identifier
-    
+
     Returns:
         Joint angles as [j1, j2, j3, j4, j5, j6] array
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.kinematics_inverse(p, refer)
-        return {"success": True, "joint_angles": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"joint_angles": robot.kinematics_inverse(p, refer)})
 
 
-def in_pose(p: Dict[str, float],
-            robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def in_pose(p: Dict[str, float], robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Check if current pose is close to target.
-    
+
     Args:
         p: Target pose - {x, y, z, rx, ry, rz} dict in meters and radians
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.in_pose(p)
-        return {"success": True, "in_pose": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"in_pose": robot.in_pose(p)})
 
 
-def measure_manipulation(p: Dict[str, float], robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def measure_manipulation(p: Dict[str, float], robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Measure manipulation.
-    
+
     Args:
         p: TCP pose - {x, y, z, rx, ry, rz} dict in meters and radians
         robot_id: Robot identifier
     """
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.measure_manipulation(p)
-        return {"success": True, "measurement": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"measurement": robot.measure_manipulation(p)})
 
 
 # ============================================================================
 # Task Management
 # ============================================================================
 
+@_robot_required
 def start_task(scene: str, params: Dict = None, dir: str = None,
                is_parallel: bool = None, loop_to: str = None,
-               robot_id: str = "default") -> Dict[str, Any]:
+               robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Start a task."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.start_task(scene, params, dir, is_parallel, loop_to)
-        return {"success": True, "task_id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"task_id": robot.start_task(scene, params, dir, is_parallel, loop_to)})
 
 
-def get_task_list(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_task_list(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get task list."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_task_list()
-        return {"success": True, "tasks": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"tasks": robot.get_task_list()})
 
 
-def get_main_task_id(robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_main_task_id(robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get main task ID."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_main_task_id()
-        return {"success": True, "main_task_id": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"main_task_id": robot.get_main_task_id()})
 
 
-def get_task_state(id: int = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_task_state(id: int = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get task state."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_task_state(id)
-        return {"success": True, "state": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"state": robot.get_task_state(id)})
 
 
-def pause_task(id: int = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def pause_task(id: int = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Pause task."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.pause_task(id)
-        return {"success": True, "message": "Task paused"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.pause_task(id)
+    return _success(message="Task paused")
 
 
-def resume_task(id: int = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def resume_task(id: int = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Resume task."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.resume_task(id)
-        return {"success": True, "message": "Task resumed"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.resume_task(id)
+    return _success(message="Task resumed")
 
 
-def cancel_task(id: int = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def cancel_task(id: int = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Cancel task."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.cancel_task(id)
-        return {"success": True, "message": "Task cancelled"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.cancel_task(id)
+    return _success(message="Task cancelled")
 
 
-def wait_task(id: int = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def wait_task(id: int = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Wait for task completion."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.wait_task(id)
-        return {"success": True, "message": "Task completed"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.wait_task(id)
+    return _success(message="Task completed")
 
 
 # ============================================================================
 # Digital I/O
 # ============================================================================
 
-def set_dio_mode(device: str, pin: int, mode: str, 
-                 robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_dio_mode(device: str, pin: int, mode: str, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set digital I/O mode."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_dio_mode(device, pin, mode)
-        return {"success": True, "message": "DIO mode configured"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_dio_mode(device, pin, mode)
+    return _success(message="DIO mode configured")
 
 
-def get_dio_mode(device: str, pin: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_dio_mode(device: str, pin: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get digital I/O mode."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_dio_mode(device, pin)
-        return {"success": True, "mode": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"mode": robot.get_dio_mode(device, pin)})
 
 
-def set_do(device: str, pin: int, value: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_do(device: str, pin: int, value: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set digital output."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_do(device, pin, value)
-        return {"success": True, "message": f"DO {device}:{pin} = {value}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_do(device, pin, value)
+    return _success(message=f"DO {device}:{pin} = {value}")
 
 
-def get_do(device: str, pin: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_do(device: str, pin: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get digital output."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_do(device, pin)
-        return {"success": True, "value": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"value": robot.get_do(device, pin)})
 
 
-def get_dos(device: str, pin: int, num: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_dos(device: str, pin: int, num: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get multiple digital outputs."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_dos(device, pin, num)
-        return {"success": True, "values": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"values": robot.get_dos(device, pin, num)})
 
 
-def get_di(device: str, pin: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_di(device: str, pin: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get digital input."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_di(device, pin)
-        return {"success": True, "value": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"value": robot.get_di(device, pin)})
 
 
-def get_dis(device: str, pin: int, num: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_dis(device: str, pin: int, num: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get multiple digital inputs."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_dis(device, pin, num)
-        return {"success": True, "values": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"values": robot.get_dis(device, pin, num)})
 
 
 # ============================================================================
 # Analog I/O
 # ============================================================================
 
-def set_ao(device: str, pin: int, value: float, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_ao(device: str, pin: int, value: float, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set analog output."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_ao(device, pin, value)
-        return {"success": True, "message": f"AO {device}:{pin} = {value}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_ao(device, pin, value)
+    return _success(message=f"AO {device}:{pin} = {value}")
 
 
-def get_ao(device: str, pin: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_ao(device: str, pin: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get analog output."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_ao(device, pin)
-        return {"success": True, "value": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"value": robot.get_ao(device, pin)})
 
 
-def get_aos(device: str, pin: int, num: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_aos(device: str, pin: int, num: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get multiple analog outputs."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_aos(device, pin, num)
-        return {"success": True, "values": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"values": robot.get_aos(device, pin, num)})
 
 
-def get_ai(device: str, pin: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_ai(device: str, pin: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get analog input."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_ai(device, pin)
-        return {"success": True, "value": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"value": robot.get_ai(device, pin)})
 
 
-def get_ais(device: str, pin: int, num: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_ais(device: str, pin: int, num: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get multiple analog inputs."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_ais(device, pin, num)
-        return {"success": True, "values": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"values": robot.get_ais(device, pin, num)})
 
 
 # ============================================================================
 # Signals
 # ============================================================================
 
-def set_signal(index: int, value: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_signal(index: int, value: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set signal."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_signal(index, value)
-        return {"success": True, "message": f"Signal {index} = {value}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_signal(index, value)
+    return _success(message=f"Signal {index} = {value}")
 
 
-def add_signal(index: int, value: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def add_signal(index: int, value: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Add signal."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.add_signal(index, value)
-        return {"success": True, "message": f"Signal {index} added"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.add_signal(index, value)
+    return _success(message=f"Signal {index} added")
 
 
-def get_signal(index: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_signal(index: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get signal."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_signal(index)
-        return {"success": True, "value": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"value": robot.get_signal(index)})
 
 
-def get_signals(index: int, length: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_signals(index: int, length: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get multiple signals."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_signals(index, length)
-        return {"success": True, "values": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"values": robot.get_signals(index, length)})
 
 
-def set_signals(index: int, values: List[int], robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_signals(index: int, values: List[int], robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set multiple signals."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_signals(index, values)
-        return {"success": True, "message": f"Signals set from index {index}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_signals(index, values)
+    return _success(message=f"Signals set from index {index}")
 
 
 # ============================================================================
 # Serial Communication
 # ============================================================================
 
-def set_serial_baud_rate(device: str, baud_rate: int, 
-                         robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_serial_baud_rate(device: str, baud_rate: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set serial baud rate."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_serial_baud_rate(device, baud_rate)
-        return {"success": True, "message": f"Serial {device} baud rate set to {baud_rate}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_serial_baud_rate(device, baud_rate)
+    return _success(message=f"Serial {device} baud rate set to {baud_rate}")
 
 
-def set_serial_timeout(device: str, timeout: float, 
-                       robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_serial_timeout(device: str, timeout: float, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set serial timeout."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_serial_timeout(device, timeout)
-        return {"success": True, "message": f"Serial {device} timeout set to {timeout}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_serial_timeout(device, timeout)
+    return _success(message=f"Serial {device} timeout set to {timeout}")
 
 
-def set_serial_parity(device: str, parity: str, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_serial_parity(device: str, parity: str, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set serial parity."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_serial_parity(device, parity)
-        return {"success": True, "message": f"Serial {device} parity set to {parity}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_serial_parity(device, parity)
+    return _success(message=f"Serial {device} parity set to {parity}")
 
 
-def set_flange_baud_rate(baud_rate: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_flange_baud_rate(baud_rate: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set flange baud rate."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_flange_baud_rate(baud_rate)
-        return {"success": True, "message": f"Flange baud rate set to {baud_rate}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_flange_baud_rate(baud_rate)
+    return _success(message=f"Flange baud rate set to {baud_rate}")
 
 
-def write_serial(device: str, data: str, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def write_serial(device: str, data: str, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Write to serial port."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.write_serial(device, data)
-        return {"success": True, "message": f"Data written to {device}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.write_serial(device, data)
+    return _success(message=f"Data written to {device}")
 
 
-def read_serial(device: str, length: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def read_serial(device: str, length: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Read from serial port."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.read_serial(device, length)
-        return {"success": True, "data": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"data": robot.read_serial(device, length)})
 
 
-def clear_serial(device: str, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def clear_serial(device: str, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Clear serial buffer."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.clear_serial(device)
-        return {"success": True, "message": f"Serial {device} buffer cleared"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.clear_serial(device)
+    return _success(message=f"Serial {device} buffer cleared")
 
 
 # ============================================================================
 # Modbus
 # ============================================================================
 
-def read_coils(device: str, pin: int, count: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def read_coils(device: str, pin: int, count: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Read Modbus coils."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.read_coils(device, pin, count)
-        return {"success": True, "values": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"values": robot.read_coils(device, pin, count)})
 
 
-def read_discrete_inputs(device: str, pin: int, count: int, 
-                         robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def read_discrete_inputs(device: str, pin: int, count: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Read Modbus discrete inputs."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.read_discrete_inputs(device, pin, count)
-        return {"success": True, "values": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"values": robot.read_discrete_inputs(device, pin, count)})
 
 
-def read_holding_registers(device: str, pin: int, count: int, 
-                           robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def read_holding_registers(device: str, pin: int, count: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Read Modbus holding registers."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.read_holding_registers(device, pin, count)
-        return {"success": True, "values": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"values": robot.read_holding_registers(device, pin, count)})
 
 
-def read_input_registers(device: str, pin: int, count: int, 
-                         robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def read_input_registers(device: str, pin: int, count: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Read Modbus input registers."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.read_input_registers(device, pin, count)
-        return {"success": True, "values": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"values": robot.read_input_registers(device, pin, count)})
 
 
-def write_single_coil(device: str, pin: int, value: int, 
-                      robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def write_single_coil(device: str, pin: int, value: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Write single Modbus coil."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.write_single_coil(device, pin, value)
-        return {"success": True, "message": f"Coil {device}:{pin} = {value}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.write_single_coil(device, pin, value)
+    return _success(message=f"Coil {device}:{pin} = {value}")
 
 
-def write_single_register(device: str, pin: int, value: int, 
-                          robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def write_single_register(device: str, pin: int, value: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Write single Modbus register."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.write_single_register(device, pin, value)
-        return {"success": True, "message": f"Register {device}:{pin} = {value}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.write_single_register(device, pin, value)
+    return _success(message=f"Register {device}:{pin} = {value}")
 
 
-def write_multiple_coils(device: str, pin: int, values: List[int], 
-                         robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def write_multiple_coils(device: str, pin: int, values: List[int], robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Write multiple Modbus coils."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.write_multiple_coils(device, pin, values)
-        return {"success": True, "message": f"Multiple coils written to {device}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.write_multiple_coils(device, pin, values)
+    return _success(message=f"Multiple coils written to {device}")
 
 
-def write_multiple_registers(device: str, pin: int, values: List[int], 
-                             robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def write_multiple_registers(device: str, pin: int, values: List[int], robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Write multiple Modbus registers."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.write_multiple_registers(device, pin, values)
-        return {"success": True, "message": f"Multiple registers written to {device}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.write_multiple_registers(device, pin, values)
+    return _success(message=f"Multiple registers written to {device}")
 
 
-def set_modbus_timeout(device: str, timeout: float, 
-                       robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_modbus_timeout(device: str, timeout: float, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set Modbus timeout."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_modbus_timeout(device, timeout)
-        return {"success": True, "message": f"Modbus {device} timeout set to {timeout}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_modbus_timeout(device, timeout)
+    return _success(message=f"Modbus {device} timeout set to {timeout}")
 
 
-def set_modbus_retry(device: str, retry: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_modbus_retry(device: str, retry: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set Modbus retry count."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_modbus_retry(device, retry)
-        return {"success": True, "message": f"Modbus {device} retry set to {retry}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_modbus_retry(device, retry)
+    return _success(message=f"Modbus {device} retry set to {retry}")
 
 
-def disconnect_modbus(device: str, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def disconnect_modbus(device: str, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Disconnect Modbus."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.disconnect_modbus(device)
-        return {"success": True, "message": f"Modbus {device} disconnected"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.disconnect_modbus(device)
+    return _success(message=f"Modbus {device} disconnected")
 
 
 # ============================================================================
 # LED Control
 # ============================================================================
 
-def set_led(mode: str, speed: int, colors: List, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_led(mode: str, speed: int, colors: List, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set LED."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_led(mode, speed, colors)
-        return {"success": True, "message": "LED configured"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_led(mode, speed, colors)
+    return _success(message="LED configured")
 
 
-def set_led_style(style: str, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_led_style(style: str, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set LED style."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_led_style(style)
-        return {"success": True, "message": f"LED style set to {style}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_led_style(style)
+    return _success(message=f"LED style set to {style}")
 
 
-def set_fan(mode: str, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_fan(mode: str, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set fan mode."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_fan(mode)
-        return {"success": True, "message": f"Fan mode set to {mode}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_fan(mode)
+    return _success(message=f"Fan mode set to {mode}")
 
 
-def set_voice(voice: str, volume: int, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_voice(voice: str, volume: int, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set voice."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_voice(voice, volume)
-        return {"success": True, "message": "Voice configured"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_voice(voice, volume)
+    return _success(message="Voice configured")
 
 
 # ============================================================================
 # Items (Key-Value Storage)
 # ============================================================================
 
-def set_item(key: str, value: Any, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def set_item(key: str, value: Any, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Set item."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        robot.set_item(key, value)
-        return {"success": True, "message": f"Item '{key}' set"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    robot.set_item(key, value)
+    return _success(message=f"Item '{key}' set")
 
 
-def get_item(key: str, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_item(key: str, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get item."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_item(key)
-        return {"success": True, "item": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"item": robot.get_item(key)})
 
 
-def get_items(prefix: str, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def get_items(prefix: str, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Get items by prefix."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.get_items(prefix)
-        return {"success": True, "items": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"items": robot.get_items(prefix)})
 
 
 # ============================================================================
 # Plugin and Advanced Features
 # ============================================================================
 
-def run_plugin_cmd(name: str, params: Dict = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def run_plugin_cmd(name: str, params: Dict = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Run plugin command."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.run_plugin_cmd(name, params)
-        return {"success": True, "result": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"result": robot.run_plugin_cmd(name, params)})
 
 
-def call(method: str, param: str = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def call(method: str, param: str = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Call arbitrary robot method."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.call(method, param)
-        return {"success": True, "result": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"result": robot.call(method, param)})
 
 
-def subscribe(method: str, param: str = None, robot_id: str = "default") -> Dict[str, Any]:
+@_robot_required
+def subscribe(method: str, param: str = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """Subscribe to robot data."""
-    try:
-        robot = _get_robot(robot_id)
-        if not robot:
-            return {"success": False, "message": "Robot not connected"}
-        result = robot.subscribe(method, param)
-        return {"success": True, "subscription": result}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}", "error": str(e)}
+    return _success(data={"subscription": robot.subscribe(method, param)})
 
 
 # ============================================================================
