@@ -117,7 +117,7 @@
 |------|------|------|
 | `init_gripper` | 初始化夹爪 | force |
 | `get_gripper` | 获取夹爪状态 | - |
-| `control_gripper` | 控制夹爪 | action, force, amplitude |
+| `control_gripper` | 控制夹爪 | force, amplitude |
 
 ### 10. 位姿操作 (11 个)
 

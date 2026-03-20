@@ -85,15 +85,14 @@ This document provides guidelines for using Lebai Robot skill functions effectiv
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `action` | string | Yes | Action: "open", "close", or "set" |
-| `force` | integer | No | Gripper force (default: 80) |
-| `amplitude` | integer | No | Position 0-100 (required for "set" action) |
+| `force` | integer | No | Gripper force (0-100) |
+| `amplitude` | integer | No | Position 0-100 (0=closed, 100=open) |
 
 **Examples:**
 ```json
-{"action": "open"}
-{"action": "close", "force": 100}
-{"action": "set", "amplitude": 50, "force": 80}
+{"amplitude": 100}
+{"amplitude": 0, "force": 100}
+{"amplitude": 50, "force": 80}
 ```
 
 ---
@@ -177,13 +176,13 @@ This document provides guidelines for using Lebai Robot skill functions effectiv
 {"name": "movel", "arguments": {"p": {"x": 0.2, "y": 0, "z": 0.1}, "a": 1, "v": 0.2}}
 
 // 2. Close gripper
-{"name": "control_gripper", "arguments": {"action": "close"}}
+{"name": "control_gripper", "arguments": {"amplitude": 0}}
 
 // 3. Move to place position
 {"name": "movel", "arguments": {"p": {"x": 0.3, "y": 0.2, "z": 0.1}, "a": 1, "v": 0.2}}
 
 // 4. Open gripper
-{"name": "control_gripper", "arguments": {"action": "open"}}
+{"name": "control_gripper", "arguments": {"amplitude": 100}}
 ```
 
 ### Home Position

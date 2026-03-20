@@ -665,27 +665,18 @@ def get_gripper(robot=None, robot_id: str = "default") -> Dict[str, Any]:
 
 
 @_robot_required
-def control_gripper(action: str = "open", force: int = None, amplitude: int = None,
+def control_gripper(force: int = None, amplitude: int = None,
                     robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Control gripper.
 
     Args:
-        action: "open", "close", or "set"
         force: Gripper force (0-100)
         amplitude: Gripper amplitude (0-100, 0=closed, 100=open)
         robot_id: Robot identifier
     """
-    if action == "open":
-        robot.set_claw(force=None, amplitude=100)
-    elif action == "close":
-        robot.set_claw(force=None, amplitude=0)
-    elif action == "set":
-        robot.set_claw(force=force, amplitude=amplitude)
-    else:
-        return _error("Invalid action. Use 'open', 'close', or 'set'")
-
-    return _success(message=f"Gripper action '{action}' executed")
+    robot.set_claw(force=force, amplitude=amplitude)
+    return _success(message="Gripper controlled")
 
 
 # ============================================================================

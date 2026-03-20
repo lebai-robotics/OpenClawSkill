@@ -39,10 +39,10 @@ movel(p={"x": 0.2, "y": 0, "z": 0.2, "rx": 3.14159, "ry": 0, "rz": 0}, a=1, v=0.
 init_gripper()
 
 # Open gripper (amplitude=100)
-control_gripper(action="open")
+control_gripper(amplitude=100)
 
 # Close gripper (amplitude=0)
-control_gripper(action="close")
+control_gripper(amplitude=0)
 ```
 
 ### 5. Get Robot Status
