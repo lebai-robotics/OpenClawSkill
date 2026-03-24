@@ -5,6 +5,35 @@ Comprehensive control over Lebai robotic arms.
 This package exposes all available lebai-sdk interfaces.
 """
 
+from .apriltag import (
+    # AprilTag Detection
+    connect_camera,
+    disconnect_camera,
+    setup_modbus,
+    find_tags,
+    get_tag_pose,
+    find_tags_batch,
+)
+
+from .apriltag_offset import (
+    # AprilTag Offset Teaching
+    teach_grasp_offset,
+    grasp_with_offset,
+    save_offset_config,
+    load_offset_config,
+)
+
+from .yolo import (
+    # YOLO Object Detection
+    connect_camera as connect_yolo_camera,
+    disconnect_camera as disconnect_yolo_camera,
+    setup_modbus as setup_yolo_modbus,
+    detect_objects,
+    get_object_pose,
+    find_objects_by_class,
+    get_best_object,
+)
+
 from .lebai_robot import (
     # Connection Management
     discover_devices,
@@ -163,6 +192,16 @@ from .lebai_robot import (
 )
 
 __all__ = [
+    # AprilTag Detection
+    "connect_camera", "disconnect_camera", "setup_modbus", "find_tags", "get_tag_pose", "find_tags_batch",
+
+    # AprilTag Offset Teaching
+    "teach_grasp_offset", "grasp_with_offset", "save_offset_config", "load_offset_config",
+
+    # YOLO Object Detection
+    "connect_yolo_camera", "disconnect_yolo_camera", "setup_yolo_modbus",
+    "detect_objects", "get_object_pose", "find_objects_by_class", "get_best_object",
+
     # Connection
     "discover_devices", "connect_robot", "disconnect_robot", "is_connected", "wait_disconnect",
     
