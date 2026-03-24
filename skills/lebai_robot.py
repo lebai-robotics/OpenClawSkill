@@ -701,16 +701,19 @@ def control_gripper(force: int = None, amplitude: int = None,
 # ============================================================================
 
 @_robot_required
-def save_pose(name: str, pose: Dict[str, float] = None, dir: str = None,
-              refer: List[float] = None, robot=None, robot_id: str = "default") -> Dict[str, Any]:
+def save_pose(name: str, pose: Union[Dict[str, float], List[float]] = None,
+              dir: str = None, refer: List[float] = None,
+              robot=None, robot_id: str = "default") -> Dict[str, Any]:
     """
     Save pose to file.
 
     Args:
         name: Pose name
-        pose: TCP pose - {x, y, z, rx, ry, rz} dict in meters and radians
+        pose: TCP pose, can be either:
+              - {x, y, z, rx, ry, rz} dict in meters and radians
+              - Joint angles list [j1, j2, j3, j4, j5, j6] in radians
         dir: Directory (optional)
-        refer: Reference joint angles (optional)
+        refer: Reference joint angles [j1, j2, j3, j4, j5, j6] in radians (optional)
         robot_id: Robot identifier
     """
     robot.save_pose(name, pose, dir, refer)
@@ -720,7 +723,19 @@ def save_pose(name: str, pose: Dict[str, float] = None, dir: str = None,
 @_robot_required
 def load_pose(name: str, dir: str = None, raw_pose: bool = None,
               robot=None, robot_id: str = "default") -> Dict[str, Any]:
-    """Load pose from file."""
+    """
+    Load pose from file.
+
+    Args:
+        name: Pose name
+        dir: Directory (optional)
+        raw_pose: If True, return pose as stored (cartesian or joint).
+                  If False/None, convert to joint angles (default).
+        robot_id: Robot identifier
+
+    Returns:
+        Dict with 'pose' key containing the pose data
+    """
     return _success(data={"pose": robot.load_pose(name, dir, raw_pose)})
 
 

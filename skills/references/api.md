@@ -123,8 +123,8 @@
 
 | 函数 | 描述 | 参数 |
 |------|------|------|
-| `save_pose` | 保存位姿 | name, pose, dir, refer |
-| `load_pose` | 加载位姿 | name, dir, raw_pose |
+| `save_pose` | 保存位姿 | name, pose, dir, refer<br>pose: {x,y,z,rx,ry,rz}字典或关节数组; refer: 关节数组 |
+| `load_pose` | 加载位姿 | name, dir, raw_pose<br>raw_pose=False: 返回关节位置; raw_pose=True: 原样返回 |
 | `load_tcp` | 加载 TCP | name, dir |
 | `load_frame` | 加载坐标系 | name, dir |
 | `load_led_style` | 加载 LED 样式 | name, dir |
@@ -275,12 +275,21 @@ print(result['value'])
 ```python
 from skills import save_pose, load_pose, movel
 
-# 保存当前位置
-save_pose(name="home_pose")
+# 使用笛卡尔坐标保存位姿
+save_pose(name="cartesian_pose", pose={"x": 0.3, "y": 0.2, "z": 0.4, "rx": 3.14, "ry": 0, "rz": 0})
 
-# 加载位姿并移动
-pose = load_pose(name="home_pose")
-# 使用 movel(p=pose['pose'], a=1, v=0.2) 进行移动
+# 使用关节角度保存位姿
+save_pose(name="joint_pose", pose=[0, -1.57, 1.57, 0, 0, 0])
+
+# 使用笛卡尔坐标保存位姿，并指定参考关节（用于奇异点情况）
+save_pose(name="pose_with_refer", pose={"x": 0.3, "y": 0.2, "z": 0.4, "rx": 3.14, "ry": 0, "rz": 0}, refer=[0, -1.57, 1.57, 0, 0, 0])
+
+# 加载位姿并移动 (默认返回关节位置)
+pose = load_pose(name="cartesian_pose")
+movel(p=pose['pose'], a=1, v=0.2)
+
+# 使用 raw_pose=True 获取原始存储的位姿（可能是笛卡尔坐标或关节位置）
+raw_pose = load_pose(name="cartesian_pose", raw_pose=True)
 ```
 
 ### Modbus 通信
